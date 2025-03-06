@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block header_title %}Music Muse{% endblock %}
+
+{% block content %}
+  <form method="POST" action="/music_muse" class="query-form">
+    <input type="text" id="query" name="query" placeholder="Search your listening data" required>
+    <button type="submit">Submit</button>
+  </form>
+  {% if response %}
+    <div class="response">
+      <p>{{ response|safe }}</p>
+    </div>
+  {% endif %}
+{% endblock %}

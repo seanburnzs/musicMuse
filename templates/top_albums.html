@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block header_title %}Top Albums{% endblock %}
+
+{% block content %}
+  <div class="filter-container">
+    <form method="GET" class="filter-form">
+      <div class="filter-group">
+        <label for="time_range">Time Range:</label>
+        <select name="time_range" id="time_range" onchange="toggleCustomDateFields()">
+          <option value="all_time" {% if selected_range == "all_time" %}selected{% endif %}>All Time</option>
+          <option value="this_week" {% if selected_range == "this_week" %}selected{% endif %}>Last 7 Days</option>
+          <option value="this_month" {% if selected_range == "this_month" %}selected{% endif %}>Last 30 Days</option>
+          <option value="this_year" {% if selected_range == "this_year" %}selected{% endif %}>This Year</option>
+          <option value="year_2024" {% if selected_range == "year_2024" %}selected{% endif %}>2024</option>
+          <option value="custom" {% if selected_range == "custom" %}selected{% endif %}>Custom Range</option>
+        </select>
+      </div>
+      
+      <div id="custom-date-fields" class="custom-date-fields" {% if selected_range != "custom" %}style="display: none;"{% endif %}>
+        <div class="date-field">
+          <label for="custom_start">From:</label>
+          <input type="date" id="custom_start" name="custom_start" value="{{ custom_start if custom_start else '' }}">
+        </div>
+        <div class="date-field">
+          <label for="custom_end">To:</label>
+          <input type="date" id="custom_end" name="custom_end" value="{{ custom_end if custom_end else '' }}">
+        </div>
+      </div>
+      
+      <div class="filter-group">
+        <label for="time_unit">Time Unit:</label>
+        <select name="time_unit" id="time_unit">
+          <option value="hours" {% if time_unit == "hours" %}selected{% endif %}>Hours</option>
+          <option value="minutes" {% if time_unit == "minutes" %}selected{% endif %}>Minutes</option>
+        </select>
+      </div>
+      
+      <button type="submit" class="filter-button">Apply Filters</button>
+    </form>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Album</th>
+        <th>Artist</th>
+        <th>Total Streams</th>
+        <th>Total {{ "Hours" if time_unit == "hours" else "Minutes" }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for album_name, artist_name, total_streams, total_time in rows %}
+      <tr>
+        <td>{{ album_name }}</td>
+        <td>{{ artist_name }}</td>
+        <td>{{ total_streams }}</td>
+        <td>{{ total_time }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <script>
+    function toggleCustomDateFields() {
+      const timeRange = document.getElementById('time_range').value;
+      const customDateFields = document.getElementById('custom-date-fields');
+      
+      if (timeRange === 'custom') {
+        customDateFields.style.display = 'flex';
+      } else {
+        customDateFields.style.display = 'none';
+      }
+    }
+    
+    // Set initial state on page load
+    document.addEventListener('DOMContentLoaded', toggleCustomDateFields);
+  </script>
+{% endblock %}

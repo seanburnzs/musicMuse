@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block header_title %}Welcome to Music Muse{% endblock %}
+
+{% block content %}
+  <div class="welcome-container">
+    <h2>Explore Your Streaming History</h2>
+    <p>Welcome to Music Muse, your personal music analytics platform. Discover insights about your listening habits and explore your music history.</p>
+    
+    <div class="feature-cards">
+      <div class="feature-card">
+        <h3>Top Tracks</h3>
+        <p>View your most played songs with detailed statistics including play counts and total listening time. Filter by different time periods to see how your music taste has evolved.</p>
+        <a href="{{ url_for('top_tracks') }}" class="feature-link">Explore Top Tracks</a>
+      </div>
+      
+      <div class="feature-card">
+        <h3>Top Albums</h3>
+        <p>Discover which albums you've spent the most time with. See total streams and listening time for each album, and filter by time periods to track your changing preferences.</p>
+        <a href="{{ url_for('top_albums') }}" class="feature-link">Explore Top Albums</a>
+      </div>
+      
+      <div class="feature-card">
+        <h3>Top Artists</h3>
+        <p>Find out which artists dominate your listening history. View comprehensive statistics about your favorite artists and how much time you've spent with their music.</p>
+        <a href="{{ url_for('top_artists') }}" class="feature-link">Explore Top Artists</a>
+      </div>
+      
+      <div class="feature-card">
+        <h3>Music Muse</h3>
+        <p>Ask natural language questions about your listening history and get intelligent insights. Discover patterns and trends in your music taste with our powerful search tool.</p>
+        <a href="{{ url_for('music_muse') }}" class="feature-link">Try Music Muse</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

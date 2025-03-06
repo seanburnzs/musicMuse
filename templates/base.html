@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title if title else "MusicMuse" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/musicMuse.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="home-button">
+    <a href="{{ url_for('index') }}" title="Home"><i class="fas fa-home"></i></a>
+  </div>
+  <div class="container">
+    <header>
+      <h1>{% block header_title %}{% endblock %}</h1>
+      <nav>
+        <a href="{{ url_for('top_tracks') }}">Top Tracks</a> |
+        <a href="{{ url_for('top_albums') }}">Top Albums</a> |
+        <a href="{{ url_for('top_artists') }}">Top Artists</a> |
+        <a href="{{ url_for('music_muse') }}">Music Muse</a>
+      </nav>
+    </header>
+
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+      <p>MusicMuse &copy; 2025</p>
+    </footer>
+  </div>
+</body>
+</html>
