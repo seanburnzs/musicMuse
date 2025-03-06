@@ -3,4 +3,4 @@ __pycache__/
 *.pyo
 .env
 streaming_data/
-.cache/
+.cache
