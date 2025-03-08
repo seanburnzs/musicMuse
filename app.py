@@ -3,20 +3,34 @@ from flask import Flask, render_template, request
 import psycopg2
 from datetime import datetime, timedelta, date
 from dotenv import load_dotenv  # DB credentials
+from urllib.parse import urlparse
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 
-# Local DB credentials
-DB_PARAMS = {
-    "dbname": os.getenv("DB_NAME", "musicmuse_db"),
-    "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASS"),
-    "host": "localhost",
-    "port": 5432
-}
+# Database connection parameters
+# Check for DATABASE_URL environment variable (Railway provides this)
+if "DATABASE_URL" in os.environ:
+    # Parse the DATABASE_URL
+    db_url = urlparse(os.environ["DATABASE_URL"])
+    DB_PARAMS = {
+        "dbname": db_url.path[1:],  # Remove leading slash
+        "user": db_url.username,
+        "password": db_url.password,
+        "host": db_url.hostname,
+        "port": db_url.port
+    }
+else:
+    # Local development fallback
+    DB_PARAMS = {
+        "dbname": "musicmuse_db",
+        "user": "postgres",  # Update with your local user
+        "password": "password",  # Update with your local password
+        "host": "localhost",
+        "port": "5432"
+    }
 
 # Utility function to get a DB connection
 def get_db_connection():

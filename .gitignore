@@ -4,3 +4,9 @@ __pycache__/
 .env
 streaming_data/
 .cache
+listeninghistorydb.csv
+artistsdb.csv
+albumsdb.csv
+tracksdb.csv
+musicmuse_backup.backup
+musicmuse_backup.sql
