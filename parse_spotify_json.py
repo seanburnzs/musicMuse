@@ -4,14 +4,52 @@ import psycopg2
 from psycopg2.extras import execute_values
 from datetime import datetime
 import dotenv
+from urllib.parse import urlparse
 
-def load_spotify_data(json_file_path, db_conn_params, cur):
+def get_db_connection():
     """
-    Reads a single Spotify JSON file (json_file_path) and upserts it into
-    the database using cursor (cur). This function does not commit—commit once
-    at the end of main loop for efficiency.
+    Get database connection parameters from environment variables.
+    Supports both local development and Railway deployment.
     """
+    dotenv.load_dotenv()
+    
+    # Check for DATABASE_URL environment variable (Railway/production)
+    if "DATABASE_URL" in os.environ:
+        # Parse the DATABASE_URL
+        db_url = urlparse(os.environ["DATABASE_URL"])
+        db_params = {
+            "dbname": db_url.path[1:],  # Remove leading slash
+            "user": db_url.username,
+            "password": db_url.password,
+            "host": db_url.hostname,
+            "port": db_url.port
+        }
+    else:
+        # Local development fallback
+        db_params = {
+            "dbname": os.getenv("PGDATABASE", "musicmuse_db"),
+            "user": os.getenv("PGUSER", "postgres"),
+            "password": os.getenv("PGPASSWORD"),
+            "host": os.getenv("PGHOST", "localhost"),
+            "port": os.getenv("PGPORT", 5432)
+        }
+    
+    try:
+        conn = psycopg2.connect(**db_params)
+        return conn
+    except psycopg2.OperationalError as e:
+        # If the specified database doesn't exist in production, fall back to 'railway'
+        if "DATABASE_URL" in os.environ and "does not exist" in str(e):
+            fallback_params = db_params.copy()
+            fallback_params["dbname"] = "railway"
+            return psycopg2.connect(**fallback_params)
+        raise
 
+def load_spotify_data(json_file_path, cur):
+    """
+    Reads a single Spotify JSON file and upserts it into the database.
+    This function does not commit—commit once at the end of main loop for efficiency.
+    """
     # Read JSON data
     with open(json_file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -153,17 +191,8 @@ def load_spotify_data(json_file_path, db_conn_params, cur):
 
 
 if __name__ == "__main__":
-    # Database parameters for local DB
-    db_params = {
-        "dbname": os.getenv("DB_NAME", "musicmuse_db"),
-        "user": os.getenv("DB_USER", "postgres"),
-        "password": os.getenv("DB_PASS"),
-        "host": "localhost",
-        "port": 5432
-    }
-
-    # Connect to PostgreSQL once5
-    conn = psycopg2.connect(**db_params)
+    # Connect to PostgreSQL once
+    conn = get_db_connection()
     conn.autocommit = False
     cur = conn.cursor()
 
@@ -175,7 +204,7 @@ if __name__ == "__main__":
         if filename.endswith(".json"):
             full_path = os.path.join(folder_path, filename)
             print(f"Processing file: {full_path}")
-            load_spotify_data(full_path, db_params, cur)
+            load_spotify_data(full_path, cur)
 
     # Commit once at the end for efficiency
     conn.commit()

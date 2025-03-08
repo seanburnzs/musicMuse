@@ -5,13 +5,40 @@ import psycopg2
 from datetime import datetime
 import logging
 import dotenv
+from urllib.parse import urlparse
 
 dotenv.load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 class MusicMuse:
-    def __init__(self, db_params):
-        self.db_params = db_params
+    def __init__(self, db_params=None):
+        """
+        Initialize the MusicMuse class with database connection parameters.
+        Can accept parameters directly or use environment variables.
+        """
+        if db_params:
+            self.db_params = db_params
+        else:
+            # Check for DATABASE_URL environment variable (Railway/production)
+            if "DATABASE_URL" in os.environ:
+                # Parse the DATABASE_URL
+                db_url = urlparse(os.environ["DATABASE_URL"])
+                self.db_params = {
+                    "dbname": db_url.path[1:],  # Remove leading slash
+                    "user": db_url.username,
+                    "password": db_url.password,
+                    "host": db_url.hostname,
+                    "port": db_url.port
+                }
+            else:
+                # Local development fallback
+                self.db_params = {
+                    "dbname": os.getenv("PGDATABASE", "musicmuse_db"),
+                    "user": os.getenv("PGUSER", "postgres"),
+                    "password": os.getenv("PGPASSWORD"),
+                    "host": os.getenv("PGHOST", "localhost"),
+                    "port": os.getenv("PGPORT", 5432)
+                }
 
     def parse_natural_language(self, query_text):
         """
