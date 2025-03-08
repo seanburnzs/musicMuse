@@ -11,7 +11,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Database connection parameters
-# Check for DATABASE_URL environment variable (Railway/production)
+# Check for DATABASE_URL environment variable (Railway provides this)
 if "DATABASE_URL" in os.environ:
     # Parse the DATABASE_URL
     db_url = urlparse(os.environ["DATABASE_URL"])
@@ -25,24 +25,16 @@ if "DATABASE_URL" in os.environ:
 else:
     # Local development fallback
     DB_PARAMS = {
-        "dbname": os.getenv("PGDATABASE", "musicmuse_db"),
-        "user": os.getenv("PGUSER", "postgres"),
-        "password": os.getenv("PGPASSWORD", "password"),
-        "host": os.getenv("PGHOST", "localhost"),
-        "port": os.getenv("PGPORT", "5432")
+        "dbname": "musicmuse_db",
+        "user": "postgres",  # Update with your local user
+        "password": "password",  # Update with your local password
+        "host": "localhost",
+        "port": "5432"
     }
 
 # Utility function to get a DB connection
 def get_db_connection():
-    try:
-        return psycopg2.connect(**DB_PARAMS)
-    except psycopg2.OperationalError as e:
-        # If the specified database doesn't exist in production, fall back to 'railway'
-        if "DATABASE_URL" in os.environ and "does not exist" in str(e):
-            fallback_params = DB_PARAMS.copy()
-            fallback_params["dbname"] = "railway"
-            return psycopg2.connect(**fallback_params)
-        raise
+    return psycopg2.connect(**DB_PARAMS)
 
 # ----- TIME RANGE HELPERS -----
 def get_date_range(range_key, custom_start=None, custom_end=None):

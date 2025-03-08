@@ -1,14 +1,11 @@
-"""
-Spotify scrobbler script that fetches recently played tracks and stores them in the database.
-Can be set up as a scheduled task to keep listening history up to date.
-"""
+"""This is the script I use to keep my own personal scrobbles (spotify streams) up to date, 
+I have it setup as a scheduled windows task, so it runs every time I turn my computer on"""
 import os
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import psycopg2
 from datetime import datetime
 from dotenv import load_dotenv
-from urllib.parse import urlparse
 
 # Load environment variables from .env
 load_dotenv()
@@ -20,26 +17,13 @@ SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI")
 SCOPE = "user-read-recently-played"
 
 # Database connection parameters
-# Check for DATABASE_URL environment variable (Railway/production)
-if "DATABASE_URL" in os.environ:
-    # Parse the DATABASE_URL
-    db_url = urlparse(os.environ["DATABASE_URL"])
-    DB_PARAMS = {
-        "dbname": db_url.path[1:],  # Remove leading slash
-        "user": db_url.username,
-        "password": db_url.password,
-        "host": db_url.hostname,
-        "port": db_url.port
-    }
-else:
-    # Local development fallback
-    DB_PARAMS = {
-        "dbname": os.getenv("PGDATABASE", "musicmuse_db"),
-        "user": os.getenv("PGUSER", "postgres"),
-        "password": os.getenv("PGPASSWORD"),
-        "host": os.getenv("PGHOST", "localhost"),
-        "port": os.getenv("PGPORT", 5432)
-    }
+DB_PARAMS = {
+    "dbname": os.getenv("DB_NAME", "musicmuse_db"),
+    "user": os.getenv("DB_USER", "postgres"),
+    "password": os.getenv("DB_PASS"),
+    "host": os.getenv("DB_HOST", "localhost"),
+    "port": os.getenv("DB_PORT", 5432)
+}
 
 # Initialize Spotipy client with OAuth
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
@@ -55,19 +39,8 @@ def get_recently_played():
     return results.get("items", [])
 
 def get_db_connection():
-    """
-    Establish a connection to the PostgreSQL database.
-    Falls back to 'railway' database if the specified database doesn't exist in production.
-    """
-    try:
-        return psycopg2.connect(**DB_PARAMS)
-    except psycopg2.OperationalError as e:
-        # If the specified database doesn't exist in production, fall back to 'railway'
-        if "DATABASE_URL" in os.environ and "does not exist" in str(e):
-            fallback_params = DB_PARAMS.copy()
-            fallback_params["dbname"] = "railway"
-            return psycopg2.connect(**fallback_params)
-        raise
+    """Establish a connection to the PostgreSQL database."""
+    return psycopg2.connect(**DB_PARAMS)
 
 def get_or_create_artist(cur, artist_name):
     """Ensure an artist exists in the artists table and return its ID."""
