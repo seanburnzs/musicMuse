@@ -219,6 +219,8 @@ def top_artists():
 @app.route("/music_muse", methods=["GET", "POST"])
 def music_muse():
     response = None
+    suggestions = get_personalized_suggestions()
+    
     if request.method == "POST":
         query_text = request.form.get("query")
         # Import MusicMuse class from music_muse.py
@@ -226,7 +228,39 @@ def music_muse():
         muse = MusicMuse(DB_PARAMS)
         parsed, results = muse.execute_query(query_text)
         response = muse.format_response(parsed, results)
-    return render_template("music_muse.html", response=response)
+    
+    return render_template("music_muse.html", response=response, suggestions=suggestions)
+
+def get_personalized_suggestions():
+    """
+    Generate personalized query suggestions based on the user's listening history.
+    Returns a list of suggestion dictionaries with 'text' and 'query' keys.
+    """
+    # These are default suggestions that will be shown to all users
+    default_suggestions = [
+        {
+            "text": "What artists do I listen to the most?",
+            "query": "What artists do I listen to the most?"
+        },
+        {
+            "text": "Which albums do I listen to the most?",
+            "query": "Which albums do I listen to the most?"
+        },
+        {
+            "text": "What songs do I listen to the most?",
+            "query": "What songs do I listen to the most?"
+        },
+        {
+            "text": "Which artists do I listen to the most on Sundays?",
+            "query": "Which artists do I listen to the most on Sundays?"
+        },
+        {
+            "text": "What are my top tracks in the Summer?",
+            "query": "What are my top tracks in the Summer?"
+        }
+    ]
+
+    return default_suggestions
 
 if __name__ == "__main__":
     app.run(debug=True)
