@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block header_title %}Compare Profiles{% endblock %}
+
+{% block content %}
+<div class="compare-select-container">
+  <h2>Select Users to Compare</h2>
+  
+  <form method="GET" action="{{ url_for('compare_profiles') }}" class="compare-form">
+    <div class="user-selection">
+      <div class="form-group">
+        <label for="user1">User 1:</label>
+        <select name="user1" id="user1" required>
+          <option value="">Select a user</option>
+          {% for username in users %}
+            <option value="{{ username }}">{{ username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="user2">User 2:</label>
+        <select name="user2" id="user2" required>
+          <option value="">Select a user</option>
+          {% for username in users %}
+            <option value="{{ username }}">{{ username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    
+    <div class="time-selection">
+      <div class="form-group">
+        <label for="time_range">Time Range:</label>
+        <select name="time_range" id="time_range" onchange="toggleCustomDateFields()">
+          <option value="all_time">All Time</option>
+          <option value="this_week">This Week</option>
+          <option value="this_month">Last 30 Days</option>
+          <option value="this_year">This Year</option>
+          <option value="year_2024">2024</option>
+          <option value="year_2023">2023</option>
+          <option value="custom">Custom Range</option>
+        </select>
+      </div>
+      
+      <div id="custom-date-fields" class="custom-date-fields" style="display: none;">
+        <div class="form-group">
+          <label for="custom_start">From:</label>
+          <input type="date" id="custom_start" name="custom_start">
+        </div>
+        <div class="form-group">
+          <label for="custom_end">To:</label>
+          <input type="date" id="custom_end" name="custom_end">
+        </div>
+      </div>
+    </div>
+    
+    <button type="submit" class="compare-button">Compare</button>
+  </form>
+</div>
+
+<script>
+  function toggleCustomDateFields() {
+    const timeRange = document.getElementById('time_range').value;
+    const customDateFields = document.getElementById('custom-date-fields');
+    
+    if (timeRange === 'custom') {
+      customDateFields.style.display = 'flex';
+    } else {
+      customDateFields.style.display = 'none';
+    }
+  }
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    // Prevent selecting the same user twice
+    const user1Select = document.getElementById('user1');
+    const user2Select = document.getElementById('user2');
+    
+    user1Select.addEventListener('change', function() {
+      const selectedUser = this.value;
+      
+      // Enable all options in user2
+      for (let i = 0; i < user2Select.options.length; i++) {
+        user2Select.options[i].disabled = false;
+      }
+      
+      // Disable the option that matches user1's selection in user2
+      if (selectedUser) {
+        for (let i = 0; i < user2Select.options.length; i++) {
+          if (user2Select.options[i].value === selectedUser) {
+            user2Select.options[i].disabled = true;
+          }
+        }
+      }
+      
+      // If user2 has the same value as user1, reset user2
+      if (user2Select.value === selectedUser) {
+        user2Select.value = "";
+      }
+    });
+    
+    user2Select.addEventListener('change', function() {
+      const selectedUser = this.value;
+      
+      // Enable all options in user1
+      for (let i = 0; i < user1Select.options.length; i++) {
+        user1Select.options[i].disabled = false;
+      }
+      
+      // Disable the option that matches user2's selection in user1
+      if (selectedUser) {
+        for (let i = 0; i < user1Select.options.length; i++) {
+          if (user1Select.options[i].value === selectedUser) {
+            user1Select.options[i].disabled = true;
+          }
+        }
+      }
+      
+      // If user1 has the same value as user2, reset user1
+      if (user1Select.value === selectedUser) {
+        user1Select.value = "";
+      }
+    });
+  });
+</script>
+{% endblock %}

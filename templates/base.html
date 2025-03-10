@@ -6,22 +6,70 @@
   <title>{{ title if title else "MusicMuse" }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/musicMuse.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
   <div class="home-button">
     <a href="{{ url_for('index') }}" title="Home"><i class="fas fa-home"></i></a>
   </div>
+  
+  <div class="user-menu">
+    {% if session.get('user_id') %}
+      <div class="dropdown">
+        <button class="dropbtn">
+          <i class="fas fa-user"></i>
+          {% if session.get('username') %}{{ session.get('username') }}{% else %}Account{% endif %}
+          <i class="fas fa-caret-down"></i>
+        </button>
+        <div class="dropdown-content">
+          <a href="{{ url_for('user_settings') }}">Settings</a>
+          <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+      </div>
+    {% else %}
+      <div class="auth-links">
+        <a href="{{ url_for('login') }}">Login</a>
+        <a href="{{ url_for('signup') }}">Sign Up</a>
+      </div>
+    {% endif %}
+  </div>
+  
   <div class="container">
     <header>
       <h1>{% block header_title %}{% endblock %}</h1>
       <nav>
-        <a href="{{ url_for('top_tracks') }}">Top Tracks</a> |
-        <a href="{{ url_for('top_albums') }}">Top Albums</a> |
-        <a href="{{ url_for('top_artists') }}">Top Artists</a> |
-        <a href="{{ url_for('music_muse') }}">Music Muse</a>
+        <a href="{{ url_for('top_items') }}">Top</a> |
+        <a href="{{ url_for('music_muse') }}">Music Muse</a> |
+        <a href="{{ url_for('compare_shortcut') }}">Compare</a> |
+        <a href="{{ url_for('profile') }}">Profile</a>
       </nav>
     </header>
+
+    {% if session.get('impersonating') %}
+    <div class="impersonation-banner">
+      <div class="impersonation-info">
+        <i class="fas fa-user-secret"></i>
+        <span>You are viewing as <strong>{{ session.impersonating.username }}</strong></span>
+      </div>
+      <div class="impersonation-actions">
+        <button id="changeImpersonationBtn" class="change-impersonation">
+          <i class="fas fa-exchange-alt"></i> Change User
+        </button>
+        <form method="POST" action="{{ url_for('impersonate_user') }}">
+          {% if request.path.startswith('/profile/') %}
+            <input type="hidden" name="redirect_to" value="{{ url_for('profile') }}">
+          {% else %}
+            <input type="hidden" name="redirect_to" value="{{ request.path }}">
+          {% endif %}
+          <button type="submit" class="stop-impersonation">
+            <i class="fas fa-sign-out-alt"></i> Exit Impersonation
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
 
     <main>
       {% block content %}{% endblock %}
@@ -31,5 +79,203 @@
       <p>MusicMuse &copy; 2025</p>
     </footer>
   </div>
+  
+  <!-- Impersonation Modal -->
+  <div id="impersonationModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>View as Another User</h2>
+      
+      <div class="impersonation-tabs">
+        <button class="tab-button active" data-tab="friends">Following</button>
+        <button class="tab-button" data-tab="search">Search</button>
+      </div>
+      
+      <div id="friends-tab" class="tab-content active">
+        <h3>Following</h3>
+        <div class="friends-list">
+          {% set friends = get_user_friends() %}
+          {% if friends %}
+            {% for friend in friends %}
+              <div class="friend-item">
+                <form method="POST" action="{{ url_for('impersonate_user') }}">
+                  <input type="hidden" name="redirect_to" value="{{ request.path }}">
+                  <input type="hidden" name="username" value="{{ friend.username }}">
+                  <button type="submit" class="friend-button">
+                    <span class="friend-name">{{ friend.username }}</span>
+                  </button>
+                </form>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="no-friends">You don't follow anyone yet.</p>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div id="search-tab" class="tab-content">
+        <h3>Search Users</h3>
+        <div class="search-container">
+          <input type="text" id="user-search" placeholder="Search by username...">
+          <div id="search-results" class="search-results"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <button id="impersonateBtn" class="impersonate-floating-btn" title="View as another user">
+    <i class="fas fa-user-secret"></i>
+  </button>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Modal functionality
+      const modal = document.getElementById('impersonationModal');
+      const btn = document.getElementById('impersonateBtn');
+      const changeBtn = document.getElementById('changeImpersonationBtn');
+      const span = document.getElementsByClassName('close')[0];
+      
+      if (btn) {
+        btn.onclick = function() {
+          modal.style.display = 'block';
+        }
+      }
+      
+      if (changeBtn) {
+        changeBtn.onclick = function() {
+          modal.style.display = 'block';
+        }
+      }
+      
+      if (span) {
+        span.onclick = function() {
+          modal.style.display = 'none';
+        }
+      }
+      
+      window.onclick = function(event) {
+        if (event.target == modal) {
+          modal.style.display = 'none';
+        }
+      }
+      
+      // Tab functionality
+      const tabButtons = document.querySelectorAll('.tab-button');
+      const tabContents = document.querySelectorAll('.tab-content');
+      
+      tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          // Remove active class from all buttons and contents
+          tabButtons.forEach(btn => btn.classList.remove('active'));
+          tabContents.forEach(content => content.classList.remove('active'));
+          
+          // Add active class to clicked button and corresponding content
+          this.classList.add('active');
+          const tabId = this.getAttribute('data-tab');
+          document.getElementById(tabId + '-tab').classList.add('active');
+        });
+      });
+      
+      // User search functionality
+      const userSearch = document.getElementById('user-search');
+      const searchResults = document.getElementById('search-results');
+      
+      if (userSearch) {
+        userSearch.addEventListener('input', function() {
+          const query = this.value.trim();
+          
+          if (query.length < 2) {
+            searchResults.innerHTML = '';
+            return;
+          }
+          
+          // Fetch users matching the query
+          fetch(`/api/search_users?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+              searchResults.innerHTML = '';
+              
+              if (data.users.length === 0) {
+                searchResults.innerHTML = '<p class="no-results">No users found</p>';
+                return;
+              }
+              
+              data.users.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/impersonate';
+                
+                // Special handling for profile pages
+                let redirectPath = window.location.pathname;
+                if (redirectPath.startsWith('/profile/')) {
+                  // Redirect to the generic profile page instead
+                  redirectPath = '/profile';
+                }
+                
+                const redirectInput = document.createElement('input');
+                redirectInput.type = 'hidden';
+                redirectInput.name = 'redirect_to';
+                redirectInput.value = redirectPath;
+                
+                const usernameInput = document.createElement('input');
+                usernameInput.type = 'hidden';
+                usernameInput.name = 'username';
+                usernameInput.value = user.username;
+                
+                const button = document.createElement('button');
+                button.type = 'submit';
+                button.className = 'user-button';
+                button.innerHTML = `<span class="user-name">${user.username}</span>`;
+                
+                form.appendChild(redirectInput);
+                form.appendChild(usernameInput);
+                form.appendChild(button);
+                userItem.appendChild(form);
+                searchResults.appendChild(userItem);
+              });
+            })
+            .catch(error => {
+              console.error('Error searching users:', error);
+              searchResults.innerHTML = '<p class="error">Error searching users</p>';
+            });
+        });
+      }
+      
+      // Modify the friend buttons to ensure page refresh
+      const friendForms = document.querySelectorAll('.friend-item form');
+      friendForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+          // Special handling for profile pages
+          const redirectInput = this.querySelector('input[name="redirect_to"]');
+          if (redirectInput && redirectInput.value.startsWith('/profile/')) {
+            // Redirect to the generic profile page instead
+            redirectInput.value = '/profile';
+          }
+          
+          // Add a small delay to show visual feedback before refreshing
+          const button = this.querySelector('button');
+          if (button) {
+            button.classList.add('active');
+            setTimeout(() => {
+              // Let the form submit normally which will refresh the page
+            }, 150);
+          }
+        });
+      });
+      
+      // Special handling for the exit impersonation button on profile pages
+      const exitImpersonationForm = document.querySelector('.impersonation-actions form');
+      if (exitImpersonationForm) {
+        const redirectInput = exitImpersonationForm.querySelector('input[name="redirect_to"]');
+        if (redirectInput && redirectInput.value.startsWith('/profile/')) {
+          // Redirect to the generic profile page instead
+          redirectInput.value = '/profile';
+        }
+      }
+    });
+  </script>
 </body>
 </html>

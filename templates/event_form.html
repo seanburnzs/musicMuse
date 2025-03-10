@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block header_title %}
+  {% if event %}Edit Event{% else %}New Event{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="event-form-container">
+  <form method="POST" class="event-form">
+    <div class="form-group">
+      <label for="name">Event Name*</label>
+      <input type="text" id="name" name="name" value="{{ event[1] if event else '' }}" required>
+    </div>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label for="start_date">Start Date*</label>
+        <input type="date" id="start_date" name="start_date" value="{{ event[2].strftime('%Y-%m-%d') if event and event[2] else '' }}" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="end_date">End (leave blank if ongoing)</label>
+        <input type="date" id="end_date" name="end_date" value="{{ event[3].strftime('%Y-%m-%d') if event and event[3] else '' }}">
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label for="category">Category</label>
+      <select id="category" name="category">
+        <option value="Relationship" {% if event and event[5] == 'Relationship' %}selected{% endif %}>Relationship</option>
+        <option value="Education" {% if event and event[5] == 'Education' %}selected{% endif %}>Education</option>
+        <option value="Career" {% if event and event[5] == 'Career' %}selected{% endif %}>Career</option>
+        <option value="Travel" {% if event and event[5] == 'Travel' %}selected{% endif %}>Travel</option>
+        <option value="Health" {% if event and event[5] == 'Health' %}selected{% endif %}>Health</option>
+        <option value="Personal" {% if event and event[5] == 'Personal' %}selected{% endif %}>Personal</option>
+        <option value="Other" {% if event and event[5] == 'Other' %}selected{% endif %}>Other</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="4">{{ event[4] if event else '' }}</textarea>
+    </div>
+    
+    <div class="form-group">
+      <label for="color">Color</label>
+      <input type="color" id="color" name="color" value="{{ event[6] if event else '#5c6bc0' }}">
+    </div>
+    
+    <div class="form-actions">
+      <a href="{{ url_for('view_events') }}" class="cancel-button">Cancel</a>
+      <button type="submit" class="save-button">
+        {% if event %}Save Changes{% else %}Create Event{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

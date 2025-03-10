@@ -10,3 +10,6 @@ albumsdb.csv
 tracksdb.csv
 musicmuse_backup.backup
 musicmuse_backup.sql
+db_schema_update.sql
+streaming_data_new/
+createUserDefault.py

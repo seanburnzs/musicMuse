@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block header_title %}Account Settings{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+  <div class="settings-sidebar">
+    <div class="settings-nav">
+      <a href="#profile" class="settings-nav-item active">Profile</a>
+      <a href="#privacy" class="settings-nav-item">Privacy</a>
+      <a href="#data" class="settings-nav-item">Streaming Data</a>
+      <a href="#hall-of-fame" class="settings-nav-item">Hall of Fame</a>
+    </div>
+  </div>
+  
+  <div class="settings-content">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for message in messages %}
+            <div class="flash-message">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    
+    <section id="profile" class="settings-section">
+      <h2>Profile Settings</h2>
+      
+      <form method="POST" action="{{ url_for('user_settings') }}" enctype="multipart/form-data" class="settings-form">
+        <div class="profile-picture-container">
+          <div class="profile-picture">
+            {% if user_info[2] %}
+              <img src="{{ url_for('static', filename='uploads/' + user_info[2]) }}" alt="Profile Picture">
+            {% else %}
+              <div class="profile-picture-placeholder">
+                <i class="fas fa-user"></i>
+              </div>
+            {% endif %}
+          </div>
+          
+          <div class="profile-picture-upload">
+            <label for="profile_picture" class="upload-button">
+              <i class="fas fa-camera"></i> Change Picture
+            </label>
+            <input type="file" id="profile_picture" name="profile_picture" accept="image/*" style="display: none;">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" value="{{ user_info[0] }}" disabled>
+          <small>Username cannot be changed</small>
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" value="{{ user_info[1] }}">
+        </div>
+        
+        <button type="submit" class="save-button">Save Profile</button>
+      </form>
+    </section>
+    
+    <section id="privacy" class="settings-section" style="display: none;">
+      <h2>Privacy Settings</h2>
+      
+      <form method="POST" action="{{ url_for('user_settings') }}" class="settings-form">
+        <div class="form-group">
+          <label for="impersonation_privacy">Who can impersonate you?</label>
+          <select id="impersonation_privacy" name="impersonation_privacy">
+            <option value="everyone" {% if settings[0] == 'everyone' %}selected{% endif %}>Everyone</option>
+            <option value="friends" {% if settings[0] == 'friends' %}selected{% endif %}>Friends Only</option>
+            <option value="private" {% if settings[0] == 'private' %}selected{% endif %}>No One</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="events_privacy">Who can see your events?</label>
+          <select id="events_privacy" name="events_privacy">
+            <option value="everyone" {% if settings[1] == 'everyone' %}selected{% endif %}>Everyone</option>
+            <option value="friends" {% if settings[1] == 'friends' %}selected{% endif %}>Friends Only</option>
+            <option value="private" {% if settings[1] == 'private' %}selected{% endif %}>No One</option>
+          </select>
+        </div>
+        
+        <button type="submit" class="save-button">Save Privacy Settings</button>
+      </form>
+    </section>
+    
+    <section id="data" class="settings-section" style="display: none;">
+      <h2>Streaming Data</h2>
+      
+      <div class="data-upload-container">
+        <p>Upload your streaming history to see personalized insights and statistics.</p>
+        
+        <a href="{{ url_for('upload_streaming_data') }}" class="upload-data-button">
+          <i class="fas fa-upload"></i> Upload Streaming Data
+        </a>
+      </div>
+    </section>
+    
+    <section id="hall-of-fame" class="settings-section" style="display: none;">
+      <h2>Hall of Fame</h2>
+      
+      <p>Customize your Hall of Fame to showcase your favorite artists, albums, and tracks.</p>
+      
+      <a href="{{ url_for('customize_hall_of_fame') }}" class="customize-hof-button">
+        <i class="fas fa-trophy"></i> Customize Hall of Fame
+      </a>
+    </section>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Navigation between settings sections
+    const navItems = document.querySelectorAll('.settings-nav-item');
+    const sections = document.querySelectorAll('.settings-section');
+    
+    navItems.forEach(item => {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Get the target section
+        const targetId = this.getAttribute('href').substring(1);
+        
+        // Hide all sections
+        sections.forEach(section => {
+          section.style.display = 'none';
+        });
+        
+        // Show the target section
+        document.getElementById(targetId).style.display = 'block';
+        
+        // Update active nav item
+        navItems.forEach(navItem => {
+          navItem.classList.remove('active');
+        });
+        this.classList.add('active');
+      });
+    });
+    
+    // Profile picture preview
+    const profilePictureInput = document.getElementById('profile_picture');
+    const profilePictureImg = document.querySelector('.profile-picture img');
+    const profilePicturePlaceholder = document.querySelector('.profile-picture-placeholder');
+    
+    if (profilePictureInput) {
+      profilePictureInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+          const reader = new FileReader();
+          
+          reader.onload = function(e) {
+            if (profilePictureImg) {
+              profilePictureImg.src = e.target.result;
+            } else if (profilePicturePlaceholder) {
+              profilePicturePlaceholder.style.display = 'none';
+              
+              const img = document.createElement('img');
+              img.src = e.target.result;
+              img.alt = 'Profile Picture';
+              
+              document.querySelector('.profile-picture').appendChild(img);
+            }
+          };
+          
+          reader.readAsDataURL(this.files[0]);
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

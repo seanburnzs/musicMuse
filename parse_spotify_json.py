@@ -5,11 +5,13 @@ from psycopg2.extras import execute_values
 from datetime import datetime
 import dotenv
 
-def load_spotify_data(json_file_path, db_conn_params, cur):
+def load_spotify_data(json_file_path, db_conn_params, cur, user_id):
     """
     Reads a single Spotify JSON file (json_file_path) and upserts it into
     the database using cursor (cur). This function does not commit—commit once
     at the end of main loop for efficiency.
+    
+    Now includes user_id parameter to associate data with a specific user.
     """
 
     # Read JSON data
@@ -60,7 +62,8 @@ def load_spotify_data(json_file_path, db_conn_params, cur):
             "reason_end": reason_end,
             "shuffle": shuffle,
             "skipped": skipped,
-            "moods": moods
+            "moods": moods,
+            "user_id": user_id  # Add user_id to each record
         })
 
     # 1) Insert or ignore duplicate artists
@@ -121,7 +124,7 @@ def load_spotify_data(json_file_path, db_conn_params, cur):
         INSERT INTO listening_history (
             timestamp, platform, ms_played, country,
             track_id, reason_start, reason_end, shuffle,
-            skipped, moods
+            skipped, moods, user_id
         )
         VALUES %s
         ON CONFLICT DO NOTHING
@@ -146,13 +149,17 @@ def load_spotify_data(json_file_path, db_conn_params, cur):
             row["reason_end"],
             row["shuffle"],
             row["skipped"],
-            row["moods"]
+            row["moods"],
+            row["user_id"]  # Include user_id in the insert
         ))
 
     execute_values(cur, history_insert_sql, final_listening_records)
 
 
 if __name__ == "__main__":
+    # Load environment variables
+    dotenv.load_dotenv()
+    
     # Database parameters for local DB
     db_params = {
         "dbname": os.getenv("DB_NAME", "musicmuse_db"),
@@ -162,20 +169,23 @@ if __name__ == "__main__":
         "port": 5432
     }
 
-    # Connect to PostgreSQL once5
+    # Connect to PostgreSQL once
     conn = psycopg2.connect(**db_params)
     conn.autocommit = False
     cur = conn.cursor()
+    
+    # Get the user ID for the new user
+    user_id = int(input("Enter the user ID for this data: "))
 
     # Directory containing all the JSON files
-    folder_path = "streaming_data"
+    folder_path = input("Enter the path to the directory containing JSON files (e.g., streaming_data_new): ")
 
     # Loop over each file in that directory
     for filename in os.listdir(folder_path):
         if filename.endswith(".json"):
             full_path = os.path.join(folder_path, filename)
             print(f"Processing file: {full_path}")
-            load_spotify_data(full_path, db_params, cur)
+            load_spotify_data(full_path, db_params, cur, user_id)
 
     # Commit once at the end for efficiency
     conn.commit()

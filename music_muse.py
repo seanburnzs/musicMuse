@@ -10,8 +10,10 @@ dotenv.load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 class MusicMuse:
-    def __init__(self, db_params):
+    def __init__(self, db_params, user_id=None):
         self.db_params = db_params
+        self.user_id = user_id
+        logging.info(f"MusicMuse initialized with user_id: {user_id}")
 
     def parse_natural_language(self, query_text):
         """
@@ -42,7 +44,11 @@ class MusicMuse:
             "reason_start": None,
             "play_count": None,
             "nth": None,
-            "use_count": False
+            "use_count": False,
+            "start_date": None,
+            "end_date": None,
+            "event_name": None,
+            "event_record_count": None
         }
 
         # Detect a "between" time expression first.
@@ -171,6 +177,9 @@ class MusicMuse:
         else:
             parsed["entity_type"] = "artist"
 
+        # Prevent common phrases from being extracted as filter values
+        common_phrases = ["what are my top", "what were my top", "my top", "my favorite", "are my top"]
+        
         # Extract additional filter for non-first queries if not already set.
         if not parsed.get("filter_value"):
             artist_filter = re.search(r"by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)", query_text)
@@ -180,18 +189,29 @@ class MusicMuse:
                 from_filter = re.search(r"from\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)", query_text)
                 if from_filter:
                     parsed["filter_value"] = from_filter.group(1).strip()
+        
         # Additional extraction for queries like "what frank ocean song..." or "which {artist} album..."
         if not parsed.get("filter_value") and parsed["entity_type"] in ("track", "album"):
             extra_filter = re.search(r"(?:what|which)\s+([a-z]+(?:\s+[a-z]+){0,3})\s+(song|track|album)", lower_query)
             if extra_filter:
                 candidate = extra_filter.group(1).strip()
-                if candidate not in ["are my top", "my favorite", "my top"]:
+                # Check if the candidate is a common phrase that should be ignored
+                if candidate.lower() not in common_phrases:
                     parsed["filter_value"] = candidate.title()
+        
         # If query starts with "my favorite" and no filter set, try to extract artist name.
         if "my favorite" in lower_query and not parsed.get("filter_value"):
             fav_match = re.search(r"my favorite\s+([a-z\s]+?)\s+(song|track|album)", lower_query)
             if fav_match:
-                parsed["filter_value"] = fav_match.group(1).strip().title()
+                candidate = fav_match.group(1).strip()
+                # Check if the candidate is a common phrase that should be ignored
+                if candidate.lower() not in common_phrases:
+                    parsed["filter_value"] = candidate.title()
+        
+        # Final check to remove common phrases that might have been incorrectly extracted
+        if parsed.get("filter_value"):
+            if parsed["filter_value"].lower() in common_phrases:
+                parsed["filter_value"] = None
 
         # Extract platform filter.
         platforms = ["ios", "android", "spotify", "apple music", "youtube", "soundcloud", "pandora"]
@@ -260,7 +280,99 @@ class MusicMuse:
         if "most times" in lower_query or "most frequently" in lower_query:
             parsed["use_count"] = True
 
+        # Check for life event references
+        event_match = re.search(r'during (?:my|the) ([\w\s]+)', query_text, re.IGNORECASE)
+        if event_match and self.user_id is not None:
+            event_name = event_match.group(1).strip()
+            logging.info(f"Found event reference: '{event_name}'")
+            
+            # Look up the event in the database
+            event_data = self.get_event_dates(event_name)
+            if event_data:
+                parsed["start_date"] = event_data["start_date"]
+                parsed["end_date"] = event_data["end_date"]
+                parsed["event_name"] = event_name
+                parsed["event_record_count"] = event_data.get("record_count", 0)
+                logging.info(f"Found event dates: {parsed['start_date']} to {parsed['end_date']} with {parsed['event_record_count']} records")
+            else:
+                logging.info(f"No event found matching '{event_name}'")
+
         return parsed
+
+    def get_event_dates(self, event_name):
+        """Look up a life event by name and return its date range"""
+        if self.user_id is None:
+            logging.warning("Cannot search for events: user_id is None")
+            return None
+            
+        try:
+            conn = psycopg2.connect(**self.db_params)
+            cur = conn.cursor()
+            
+            # First, log all events for this user to help with debugging
+            cur.execute("""
+                SELECT event_id, name, start_date, end_date
+                FROM user_events
+                WHERE user_id = %s
+            """, (self.user_id,))
+            
+            all_events = cur.fetchall()
+            logging.info(f"All events for user {self.user_id}: {all_events}")
+            
+            # Look for events with similar names - FIXED: using event_id instead of id
+            cur.execute("""
+                SELECT event_id, name, start_date, end_date
+                FROM user_events
+                WHERE user_id = %s AND LOWER(name) LIKE %s
+                ORDER BY similarity(LOWER(name), %s) DESC
+                LIMIT 1
+            """, (self.user_id, f"%{event_name.lower()}%", event_name.lower()))
+            
+            result = cur.fetchone()
+            
+            if result:
+                event_id, event_name_db, start_date, end_date = result
+                logging.info(f"Found event: ID={event_id}, Name='{event_name_db}', Dates: {start_date} to {end_date or 'now'}")
+                
+                # Check if there's any listening data in this date range
+                end_date_value = end_date if end_date else datetime.now().date()
+                
+                # First, check the total listening data for this user
+                cur.execute("""
+                    SELECT COUNT(*), MIN(timestamp)::date, MAX(timestamp)::date 
+                    FROM listening_history 
+                    WHERE user_id = %s
+                """, (self.user_id,))
+                
+                total_count, min_date, max_date = cur.fetchone()
+                logging.info(f"User {self.user_id} has {total_count} total listening records from {min_date} to {max_date}")
+                
+                # Now check for data specifically in the event date range
+                cur.execute("""
+                    SELECT COUNT(*) 
+                    FROM listening_history 
+                    WHERE user_id = %s AND timestamp::date BETWEEN %s::date AND %s::date
+                """, (self.user_id, start_date, end_date_value))
+                
+                count = cur.fetchone()[0]
+                logging.info(f"Found {count} listening records between {start_date} and {end_date_value}")
+                
+                return {
+                    "start_date": start_date,
+                    "end_date": end_date_value,
+                    "record_count": count
+                }
+            
+            logging.warning(f"No event found matching '{event_name}' for user_id {self.user_id}")
+            return None
+        except Exception as e:
+            logging.error(f"Error searching for event: {e}")
+            return None
+        finally:
+            if 'cur' in locals() and cur:
+                cur.close()
+            if 'conn' in locals() and conn:
+                conn.close()
 
     def build_sql_query(self, parsed):
         """
@@ -276,6 +388,11 @@ class MusicMuse:
         )
         where_clauses = []
         params = []
+
+        # Add user_id filter if available
+        if self.user_id is not None:
+            where_clauses.append("lh.user_id = %s")
+            params.append(self.user_id)
 
         # Common filters.
         if parsed["year"]:
@@ -303,8 +420,10 @@ class MusicMuse:
             elif parsed["season"] == "spring":
                 where_clauses.append("EXTRACT(MONTH FROM lh.timestamp) IN (3, 4, 5)")
         if parsed.get("filter_value"):
-            where_clauses.append("ar.artist_name ILIKE %s")
-            params.append(f"%{parsed['filter_value']}%")
+            common_phrases = ["what are my top", "what were my top", "my top", "my favorite", "are my top", "were my top"]
+            if parsed["filter_value"].lower() not in common_phrases:
+                where_clauses.append("ar.artist_name ILIKE %s")
+                params.append(f"%{parsed['filter_value']}%")
         if parsed.get("platform"):
             where_clauses.append("lh.platform ILIKE %s")
             params.append(f"%{parsed['platform']}%")
@@ -320,6 +439,23 @@ class MusicMuse:
         if parsed.get("reason_start"):
             where_clauses.append("lh.reason_start ILIKE %s")
             params.append(f"%{parsed['reason_start']}%")
+        
+        # Add event date filtering if present
+        if parsed.get("start_date") and parsed.get("end_date"):
+            # Log the date types
+            logging.info(f"Date types - start_date: {type(parsed['start_date'])}, end_date: {type(parsed['end_date'])}")
+            
+            # Use explicit casting to ensure correct date comparison
+            where_clauses.append("lh.timestamp::date BETWEEN %s::date AND %s::date")
+            
+            # Ensure dates are strings in the correct format
+            start_date_str = parsed["start_date"].strftime('%Y-%m-%d') if hasattr(parsed["start_date"], 'strftime') else str(parsed["start_date"])
+            end_date_str = parsed["end_date"].strftime('%Y-%m-%d') if hasattr(parsed["end_date"], 'strftime') else str(parsed["end_date"])
+            
+            params.append(start_date_str)
+            params.append(end_date_str)
+            
+            logging.info(f"Adding date filter: {start_date_str} to {end_date_str}")
         
         where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
 
@@ -562,11 +698,18 @@ class MusicMuse:
                 conditions.append(f"with a {parsed['mood']} mood")
             if parsed.get("reason_start"):
                 conditions.append(f"started via {parsed['reason_start']}")
+            
+            # Build the header text
             condition_str = " " + " ".join(conditions) if conditions else ""
             entity_map = {"artist": "artists", "track": "songs", "album": "albums"}
             action_text = "most skipped" if parsed["action"] == "skipped" else "top"
             entity_text = entity_map.get(parsed["entity_type"], "artists")
-            header_text = f"Your {action_text} {entity_text}{condition_str}:"
+            
+            # Add event context to header if present - MODIFIED: removed date range
+            header_text = f"Your {action_text} {entity_text}{condition_str}"
+            if parsed.get("event_name"):
+                header_text += f" during your {parsed['event_name']}"
+            header_text += ":"
 
             def is_valid_row(row, entity_type):
                 if entity_type == "artist":
@@ -577,20 +720,51 @@ class MusicMuse:
                     return (row[0].strip().lower() != "unknown album") and (row[1].strip().lower() != "unknown artist")
                 return True
 
+            # Log the raw results before filtering
+            logging.info(f"Raw results before filtering: {results[:5]}")
+            
             filtered_results = [row for row in results if is_valid_row(row, parsed["entity_type"])]
+            
+            # Log the filtered results
+            logging.info(f"Filtered results: {filtered_results[:5]}")
+            
             valid_results = filtered_results[:parsed["limit"]]
+            
+            # Add debug info if no results
+            if not valid_results and parsed.get("event_name"):
+                logging.warning(f"No valid results for event query: {parsed['event_name']}")
+                if parsed.get("start_date") and parsed.get("end_date"):
+                    logging.info(f"Event date range: {parsed['start_date']} to {parsed['end_date']}")
 
-            html_response = f"<h2>{header_text}</h2><ul class='result-list'>"
-            if parsed["entity_type"] == "track":
-                for row in valid_results:
-                    html_response += f"<li><span class='track-name'>{row[0]}</span> by <span class='artist-name'>{row[1]}</span></li>"
-            elif parsed["entity_type"] == "album":
-                for row in valid_results:
-                    html_response += f"<li><span class='album-name'>{row[0]}</span> by <span class='artist-name'>{row[1]}</span></li>"
-            else:  # artist
-                for row in valid_results:
-                    html_response += f"<li><span class='artist-name'>{row[0]}</span></li>"
-            html_response += "</ul>"
+            html_response = f"<h2>{header_text}</h2>"
+            
+            # Only add the list if we have results
+            if valid_results:
+                html_response += "<ul class='result-list'>"
+                if parsed["entity_type"] == "track":
+                    for row in valid_results:
+                        html_response += f"<li><span class='track-name'>{row[0]}</span> by <span class='artist-name'>{row[1]}</span></li>"
+                elif parsed["entity_type"] == "album":
+                    for row in valid_results:
+                        html_response += f"<li><span class='album-name'>{row[0]}</span> by <span class='artist-name'>{row[1]}</span></li>"
+                else:  # artist
+                    for row in valid_results:
+                        html_response += f"<li><span class='artist-name'>{row[0]}</span></li>"
+                html_response += "</ul>"
+            else:
+                # Add a message when no results are found
+                if parsed.get("event_name"):
+                    if parsed.get("event_record_count", 0) == 0:
+                        html_response += "<p>No listening data found during this event period.</p>"
+                        
+                        # Add more context about the data availability
+                        if parsed.get("start_date") and parsed.get("end_date"):
+                            html_response += f"<p><small>Event period: {parsed['start_date']} to {parsed['end_date']}</small></p>"
+                    else:
+                        html_response += "<p>No matching results found for your query during this event.</p>"
+                else:
+                    html_response += "<p>No results found for your query.</p>"
+            
             return html_response
 
     def join_items(self, items):
@@ -618,16 +792,73 @@ class MusicMuse:
         and returns both the parsed parameters and raw results.
         """
         parsed = self.parse_natural_language(query_text)
+        logging.info(f"Parsed query parameters: {parsed}")
         sql_query, params = self.build_sql_query(parsed)
         logging.info("Executing SQL: %s with params %s", sql_query, params)
+        
         try:
             with psycopg2.connect(**self.db_params) as conn:
                 with conn.cursor() as cur:
+                    # If this is an event query, do additional checks
+                    if parsed.get("event_name"):
+                        logging.info(f"Processing event query for event: '{parsed['event_name']}'")
+                        
+                        # Check if there's any data for this user at all
+                        cur.execute("SELECT COUNT(*) FROM listening_history WHERE user_id = %s", (self.user_id,))
+                        total_count = cur.fetchone()[0]
+                        logging.info(f"Total listening records for user {self.user_id}: {total_count}")
+                        
+                        # Check the earliest and latest timestamps
+                        if total_count > 0:
+                            cur.execute("""
+                                SELECT MIN(timestamp)::date, MAX(timestamp)::date 
+                                FROM listening_history 
+                                WHERE user_id = %s
+                            """, (self.user_id,))
+                            min_date, max_date = cur.fetchone()
+                            logging.info(f"Listening data range: {min_date} to {max_date}")
+                            
+                            # Check if event dates are outside the available data range
+                            if parsed.get("start_date") and parsed.get("end_date"):
+                                if parsed["start_date"] > max_date or parsed["end_date"] < min_date:
+                                    logging.warning(f"Event dates ({parsed['start_date']} to {parsed['end_date']}) are outside available data range")
+                    
+                    # Execute the main query
                     cur.execute(sql_query, params)
                     results = cur.fetchall()
+                    logging.info(f"Query returned {len(results)} results")
+                    
+                    # If no results but we have an event, try a simpler query to check data
+                    if len(results) == 0 and parsed.get("event_name") and parsed.get("start_date") and parsed.get("end_date"):
+                        logging.warning(f"No results found for event '{parsed['event_name']}', trying a simpler query")
+                        
+                        # Try a simple query just to check if there's any data in the date range
+                        simple_query = """
+                            SELECT COUNT(*) 
+                            FROM listening_history 
+                            WHERE user_id = %s AND DATE(timestamp) BETWEEN %s AND %s
+                        """
+                        cur.execute(simple_query, (self.user_id, parsed["start_date"], parsed["end_date"]))
+                        simple_count = cur.fetchone()[0]
+                        logging.info(f"Simple query found {simple_count} records in date range")
+                        
+                        # If still no results, check if the user_id is correct in both tables
+                        if simple_count == 0:
+                            cur.execute("""
+                                SELECT COUNT(*) FROM user_events WHERE user_id = %s
+                            """, (self.user_id,))
+                            event_count = cur.fetchone()[0]
+                            
+                            cur.execute("""
+                                SELECT COUNT(*) FROM listening_history WHERE user_id = %s
+                            """, (self.user_id,))
+                            listening_count = cur.fetchone()[0]
+                            
+                            logging.info(f"User {self.user_id} has {event_count} events and {listening_count} listening records")
         except Exception as e:
             logging.error("Query execution error: %s", e)
             results = [("Error executing query", str(e))]
+        
         return parsed, results
 
 if __name__ == "__main__":
