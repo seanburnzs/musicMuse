@@ -1,0 +1,647 @@
+{% extends "base.html" %}
+
+{% block header_title %}Upload Streaming Data{% endblock %}
+
+{% block content %}
+<div class="upload-data-container">
+  <!-- Navigation header similar to artist/track/album pages -->
+  <div class="detail-header">
+    <a href="{{ url_for('profile.user_settings') }}" class="back-button" title="Go back to Settings">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    
+    <div class="detail-identity">
+      <h2 class="detail-title">Upload Streaming History</h2>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash-messages">
+        {% for message in messages %}
+          <div class="flash-message">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  
+  <div class="upload-instructions">
+    <h3>How to get your streaming data:</h3>
+    <ol>
+      <li>Go to your Spotify account page</li>
+      <li>Navigate to Privacy settings</li>
+      <li>Request your data (this may take a few days)</li>
+      <li>Download the ZIP file when available</li>
+      <li>Extract the ZIP file</li>
+      <li>Upload your JSON files containing streaming history</li>
+    </ol>
+  </div>
+  
+  <form method="POST" action="{{ url_for('profile.upload_streaming_data') }}" enctype="multipart/form-data" class="upload-form" id="upload-form">
+    <!-- Add CSRF token -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    
+    <div class="upload-area" id="upload-area">
+      <div class="upload-icon">
+        <i class="fas fa-cloud-upload-alt"></i>
+      </div>
+      <p>Drag and drop files here or click to browse</p>
+      <p class="upload-note">Supported formats: JSON (max 60MB per file)</p>
+      <!-- The label makes the entire upload area clickable -->
+      <label for="streaming_data" class="upload-label">
+        Choose files
+        <input type="file" id="streaming_data" name="streaming_data" accept=".json" multiple>
+      </label>
+    </div>
+    
+    <div id="selected-files" class="selected-files"></div>
+    
+    <div class="files-count-container" id="files-count-container" style="display: none;">
+      <div class="files-count">Files selected: <span id="total-files">0</span></div>
+    </div>
+    
+    <div class="progress-container" style="display: none;">
+      <div class="progress-label">Upload progress: <span id="current-file">0%</span></div>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="upload-progress" style="width: 0%;"></div>
+      </div>
+    </div>
+    
+    <button type="submit" class="upload-button" id="upload-button">Upload and Process Data</button>
+  </form>
+</div>
+
+<style>
+  /* Upload container with better spacing */
+  .upload-data-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  /* Detail header styling similar to artist/track/album pages */
+  .detail-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .back-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #f0f2f5;
+    color: #555;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-decoration: none;
+    margin-right: 15px;
+    transition: all 0.2s ease;
+  }
+  
+  .back-button:hover {
+    background-color: #e0e0e0;
+    color: #333;
+  }
+  
+  .detail-identity {
+    flex-grow: 1;
+  }
+  
+  .detail-title {
+    font-size: 1.5em;
+    color: #333;
+    margin: 0;
+  }
+  
+  /* Upload area styling */
+  .upload-area {
+    width: 100%;
+    max-width: 600px;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin: 20px auto;
+  }
+  
+  .upload-area:hover {
+    border-color: #5c6bc0;
+    background-color: rgba(92, 107, 192, 0.05);
+  }
+  
+  /* File input styling */
+  input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+    /* This ensures the file input doesn't block clicks */
+    pointer-events: none;
+  }
+  
+  /* Progress bar styling */
+  .progress-container {
+    width: 100%;
+    max-width: 600px;
+    margin: 20px auto;
+  }
+  
+  .progress-label {
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    color: #666;
+    text-align: center;
+  }
+  
+  .progress-bar-container {
+    width: 100%;
+    height: 12px;
+    background-color: #f0f2f5;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+  }
+  
+  .progress-bar {
+    height: 100%;
+    background-color: #5c6bc0;
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 6px;
+  }
+  
+  .upload-note {
+    font-size: 0.9em;
+    color: #888;
+    margin-top: 10px !important;
+  }
+  
+  /* Selected files styling */
+  .selected-files {
+    width: 100%;
+    max-width: 600px;
+    margin: 20px auto;
+  }
+  
+  .file-item {
+    display: flex;
+    align-items: center;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  
+  .file-icon {
+    margin-right: 15px;
+    color: #5c6bc0;
+  }
+  
+  .file-info {
+    flex: 1;
+  }
+  
+  .file-name {
+    font-weight: 500;
+    margin-bottom: 3px;
+  }
+  
+  .file-size {
+    font-size: 0.85em;
+    color: #777;
+    margin-bottom: 3px;
+  }
+  
+  .file-status {
+    font-size: 0.85em;
+    font-weight: 500;
+    padding: 2px 5px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-top: 2px;
+  }
+  
+  /* Upload button styling */
+  .upload-button {
+    display: block;
+    padding: 12px 30px;
+    background-color: #5c6bc0;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin: 20px auto 0 auto;
+  }
+  
+  .upload-button:hover {
+    background-color: #3f51b5;
+  }
+  
+  .upload-button:disabled {
+    background-color: #9e9e9e;
+    cursor: not-allowed;
+  }
+  
+  /* Upload label styling */
+  .upload-label {
+    display: inline-block;
+    padding: 10px 20px;
+    margin-top: 15px;
+    background-color: #5c6bc0;
+    color: white;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-weight: 500;
+  }
+  
+  .upload-label:hover {
+    background-color: #3f51b5;
+  }
+
+  /* Files count styling */
+  .files-count-container {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 10px auto;
+    text-align: center;
+  }
+  
+  .files-count {
+    font-size: 0.95em;
+    color: #5c6bc0;
+    font-weight: 500;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('streaming_data');
+    const selectedFilesContainer = document.getElementById('selected-files');
+    const uploadArea = document.getElementById('upload-area');
+    const uploadForm = document.getElementById('upload-form');
+    const uploadButton = document.getElementById('upload-button');
+    const progressContainer = document.querySelector('.progress-container');
+    const progressBar = document.getElementById('upload-progress');
+    const currentFileElement = document.getElementById('current-file');
+    const totalFilesElement = document.getElementById('total-files');
+    const filesCountContainer = document.getElementById('files-count-container');
+    
+    // File size limits in bytes
+    const MAX_FILE_SIZE = 60 * 1024 * 1024; // 60MB per file
+    const MAX_TOTAL_SIZE = 400 * 1024 * 1024; // total (for multiple files)
+    
+    // Track total files selected and queue for processing
+    let totalFiles = 0;
+    let fileQueue = [];
+    let currentFileIndex = 0;
+    let isUploading = false;
+    const UPLOAD_DELAY = 2000; // 2 seconds delay between files
+    
+    // Function to update the total files count display
+    function updateTotalFiles() {
+      totalFilesElement.textContent = totalFiles;
+      
+      // Show or hide the files count container based on whether there are files
+      if (totalFiles > 0) {
+        filesCountContainer.style.display = 'block';
+      } else {
+        filesCountContainer.style.display = 'none';
+      }
+    }
+    
+    // Function to display selected files
+    function updateSelectedFiles(files) {
+      // Clear the container first
+      selectedFilesContainer.innerHTML = '';
+      
+      // Set the total files count
+      totalFiles = files.length;
+      updateTotalFiles();
+      
+      // If no files selected, just return
+      if (files.length === 0) return;
+      
+      // Convert FileList to Array and store in queue for processing
+      fileQueue = Array.from(files);
+      
+      // Display all selected files
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.id = `file-item-${i}`;
+        fileItem.innerHTML = `
+          <div class="file-icon"><i class="fas fa-file-alt"></i></div>
+          <div class="file-info">
+            <div class="file-name">${file.name}</div>
+            <div class="file-size">${formatFileSize(file.size)}</div>
+            <div class="file-status">Pending</div>
+          </div>
+        `;
+        selectedFilesContainer.appendChild(fileItem);
+      }
+    }
+    
+    // Handle file selection
+    fileInput.addEventListener('change', function(event) {
+      const files = event.target.files;
+      logUploadAttempt(files);
+      
+      // Validate files
+      if (validateFiles(files)) {
+        updateSelectedFiles(files);
+      } else {
+        fileInput.value = ''; // Clear the file input
+        selectedFilesContainer.innerHTML = '';
+        totalFiles = 0;
+        updateTotalFiles();
+      }
+    });
+    
+    // We don't need to handle click on the upload area anymore because we're using a label
+    // which automatically triggers the file input when clicked
+    
+    // Drag and drop functionality
+    uploadArea.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      this.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', function() {
+      this.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.classList.remove('dragover');
+      
+      if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        const event = new Event('change');
+        fileInput.dispatchEvent(event);
+      }
+    });
+    
+    // Handle form submission with AJAX
+    uploadForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      if (isUploading) {
+        alert('An upload is already in progress. Please wait for it to complete.');
+        return false;
+      }
+      
+      if (fileQueue.length === 0) {
+        alert('Please select at least one file to upload.');
+        return false;
+      }
+      
+      // Start the sequential upload process
+      currentFileIndex = 0;
+      isUploading = true;
+      uploadButton.disabled = true;
+      console.log(`Starting sequential upload of ${fileQueue.length} files`);
+      
+      // Begin uploading the first file
+      uploadNextFile();
+    });
+    
+    // Function to upload files one by one
+    function uploadNextFile() {
+      if (currentFileIndex >= fileQueue.length) {
+        // All files have been uploaded
+        isUploading = false;
+        uploadButton.disabled = false;
+        console.log('All files have been uploaded.');
+        fileQueue = [];
+        return;
+      }
+      
+      const file = fileQueue[currentFileIndex];
+      console.log(`Uploading file ${currentFileIndex + 1}/${fileQueue.length}: ${file.name}`);
+      
+      // Update UI to show which file is being uploaded
+      const fileItems = document.querySelectorAll('.file-item');
+      for (let i = 0; i < fileItems.length; i++) {
+        const statusElement = fileItems[i].querySelector('.file-status');
+        if (i < currentFileIndex) {
+          statusElement.textContent = 'Completed';
+          statusElement.style.color = '#4CAF50';
+        } else if (i === currentFileIndex) {
+          statusElement.textContent = 'Uploading...';
+          statusElement.style.color = '#2196F3';
+        } else {
+          statusElement.textContent = 'Pending';
+          statusElement.style.color = '#FF9800';
+        }
+      }
+      
+      // Create FormData for single file
+      const formData = new FormData();
+      formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+      formData.append('streaming_data', file);
+      
+      // Show progress container
+      progressContainer.style.display = 'block';
+      currentFileElement.textContent = '0%';
+      progressBar.style.width = '0%';
+      
+      // Upload the file
+      uploadFile(file, formData);
+    }
+    
+    // Format file size
+    function formatFileSize(bytes) {
+      if (bytes < 1024) {
+        return bytes + ' bytes';
+      } else if (bytes < 1024 * 1024) {
+        return (bytes / 1024).toFixed(1) + ' KB';
+      } else {
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      }
+    }
+    
+    // Enhanced logging for file uploads
+    function logUploadAttempt(files) {
+      console.log('Upload attempt started');
+      console.log(`Number of files selected: ${files.length}`);
+      
+      let totalSize = 0;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        totalSize += file.size;
+        console.log(`File ${i+1}: ${file.name}, Size: ${(file.size / (1024*1024)).toFixed(2)}MB, Type: ${file.type}`);
+      }
+      console.log(`Total upload size: ${(totalSize / (1024*1024)).toFixed(2)}MB`);
+    }
+    
+    // Enhanced XHR upload with better error logging for a single file
+    function uploadFile(file, formData) {
+      console.log(`Starting upload of file: ${file.name}`);
+      
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/upload_streaming_data', true);
+      
+      xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          console.log(`Upload progress: ${percentComplete.toFixed(2)}%`);
+          
+          // Update progress bar
+          progressBar.style.width = percentComplete + '%';
+          
+          // Update progress text
+          currentFileElement.textContent = Math.round(percentComplete) + '%';
+        }
+      };
+      
+      xhr.onload = function() {
+        console.log(`XHR onload triggered for ${file.name}. Status: ${xhr.status}`);
+        
+        // Mark the current file as uploaded in the UI
+        const fileItem = document.getElementById(`file-item-${currentFileIndex}`);
+        const statusElement = fileItem.querySelector('.file-status');
+        
+        if (xhr.status >= 200 && xhr.status < 300) {
+          console.log(`Upload of ${file.name} completed successfully`);
+          statusElement.textContent = 'Completed';
+          statusElement.style.color = '#4CAF50';
+          
+          try {
+            const response = JSON.parse(xhr.responseText);
+            console.log(`Server response:`, response);
+            
+            // Move to the next file after a delay
+            currentFileIndex++;
+            setTimeout(function() {
+              uploadNextFile();
+            }, UPLOAD_DELAY);
+          } catch (e) {
+            console.error('Error parsing response:', e);
+            statusElement.textContent = 'Error';
+            statusElement.style.color = '#F44336';
+            
+            // Continue with the next file after delay
+            currentFileIndex++;
+            setTimeout(function() {
+              uploadNextFile();
+            }, UPLOAD_DELAY);
+          }
+        } else {
+          console.error(`Upload of ${file.name} failed with status ${xhr.status}`);
+          console.error(`Response: ${xhr.responseText}`);
+          statusElement.textContent = 'Failed';
+          statusElement.style.color = '#F44336';
+          
+          // Specific handling for 413 error
+          if (xhr.status === 413) {
+            console.error('Request entity too large error detected');
+            alert(`The file "${file.name}" is too large. Maximum size is 60MB per file.`);
+          } else {
+            try {
+              const response = JSON.parse(xhr.responseText);
+              alert(response.message || `Upload of ${file.name} failed. Please try again.`);
+            } catch (e) {
+              alert(`Upload of ${file.name} failed. Please try again.`);
+            }
+          }
+          
+          // Continue with the next file after delay
+          currentFileIndex++;
+          setTimeout(function() {
+            uploadNextFile();
+          }, UPLOAD_DELAY);
+        }
+      };
+      
+      xhr.onerror = function() {
+        console.error(`Network error during upload of ${file.name}`);
+        
+        // Mark the current file as failed in the UI
+        const fileItem = document.getElementById(`file-item-${currentFileIndex}`);
+        const statusElement = fileItem.querySelector('.file-status');
+        statusElement.textContent = 'Failed';
+        statusElement.style.color = '#F44336';
+        
+        alert(`Network error during upload of ${file.name}. Please check your connection and try again.`);
+        
+        // Continue with the next file after delay
+        currentFileIndex++;
+        setTimeout(function() {
+          uploadNextFile();
+        }, UPLOAD_DELAY);
+      };
+      
+      xhr.onabort = function() {
+        console.log(`Upload of ${file.name} was aborted`);
+        
+        // Mark the current file as aborted in the UI
+        const fileItem = document.getElementById(`file-item-${currentFileIndex}`);
+        const statusElement = fileItem.querySelector('.file-status');
+        statusElement.textContent = 'Aborted';
+        statusElement.style.color = '#FF9800';
+        
+        // Continue with the next file after delay
+        currentFileIndex++;
+        setTimeout(function() {
+          uploadNextFile();
+        }, UPLOAD_DELAY);
+      };
+      
+      console.log(`Sending XHR request for file ${file.name}`);
+      xhr.send(formData);
+    }
+    
+    // Function to check if selected files are valid (size checks)
+    function validateFiles(files) {
+      if (files.length === 0) return false;
+      
+      let totalSize = 0;
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Check file size
+        if (file.size > MAX_FILE_SIZE) {
+          console.error(`File ${file.name} exceeds maximum size limit of 60MB`);
+          alert(`The file "${file.name}" exceeds the maximum size limit of 60MB per file.`);
+          return false;
+        }
+        
+        // Check file type
+        if (!file.name.toLowerCase().endsWith('.json')) {
+          console.error(`File ${file.name} is not a JSON file`);
+          alert(`The file "${file.name}" is not a supported format. Please upload JSON files only.`);
+          return false;
+        }
+        
+        totalSize += file.size;
+      }
+      
+      // Check total size
+      if (totalSize > MAX_TOTAL_SIZE) {
+        console.error(`Total upload size (${(totalSize / (1024*1024)).toFixed(2)}MB) exceeds the maximum total limit of 120MB`);
+        alert(`The total size of all files (${(totalSize / (1024*1024)).toFixed(2)}MB) exceeds the maximum upload limit of 120MB.`);
+        return false;
+      }
+      
+      console.log('File validation passed');
+      return true;
+    }
+  });
+</script>
+{% endblock %}

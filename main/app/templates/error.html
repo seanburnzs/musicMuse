@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block header_title %}Error{% endblock %}
+
+{% block content %}
+<div class="error-container">
+  <div class="error-icon">
+    <i class="fas fa-exclamation-circle"></i>
+  </div>
+  <h2 class="error-title">Something went wrong</h2>
+  <div class="error-message">
+    {{ error }}
+  </div>
+  <div class="error-actions">
+    <a href="{{ url_for('main.index') }}" class="home-link">
+      <i class="fas fa-home"></i> Return to Home
+    </a>
+    <button onclick="history.back()" class="back-link">
+      <i class="fas fa-arrow-left"></i> Go Back
+    </button>
+  </div>
+</div>
+
+<style>
+  .error-container {
+    max-width: 600px;
+    margin: 60px auto;
+    padding: 30px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    text-align: center;
+  }
+  
+  .error-icon {
+    font-size: 60px;
+    color: #e74c3c;
+    margin-bottom: 20px;
+  }
+  
+  .error-title {
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 20px;
+  }
+  
+  .error-message {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 30px;
+  }
+  
+  .error-actions {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
+  
+  .home-link, .back-link {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #5c6bc0;
+    color: white;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background-color 0.3s;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .back-link {
+    background-color: #78909c;
+  }
+  
+  .home-link:hover, .back-link:hover {
+    background-color: #3f51b5;
+  }
+  
+  .back-link:hover {
+    background-color: #607d8b;
+  }
+</style>
+{% endblock %} 

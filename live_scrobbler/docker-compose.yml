@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  # Redis for Celery
+  redis:
+    image: redis:7-alpine
+    container_name: live_scrobbler_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # API server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: live_scrobbler_api
+    command: gunicorn -w 4 -b 0.0.0.0:5000 src.api:app
+    environment:
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASS=${DB_PASS:-postgres}
+      - DB_NAME=${DB_NAME:-musicmuse_db}
+      - REDIS_URL=redis://redis:6379/0
+      - SPOTIPY_CLIENT_ID=${SPOTIPY_CLIENT_ID}
+      - SPOTIPY_CLIENT_SECRET=${SPOTIPY_CLIENT_SECRET}
+      - SPOTIPY_REDIRECT_URI=${SPOTIPY_REDIRECT_URI}
+      - SECRET_KEY=${SECRET_KEY:-dev_key}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+    volumes:
+      - ./logs:/app/logs
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - scrobbler_network
+      - default
+
+  # Celery worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: live_scrobbler_worker
+    command: celery -A src.tasks worker --loglevel=${LOG_LEVEL:-INFO}
+    environment:
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASS=${DB_PASS:-postgres}
+      - DB_NAME=${DB_NAME:-musicmuse_db}
+      - REDIS_URL=redis://redis:6379/0
+      - SPOTIPY_CLIENT_ID=${SPOTIPY_CLIENT_ID}
+      - SPOTIPY_CLIENT_SECRET=${SPOTIPY_CLIENT_SECRET}
+      - SPOTIPY_REDIRECT_URI=${SPOTIPY_REDIRECT_URI}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - scrobbler_network
+      - default
+
+  # Celery beat (scheduler)
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: live_scrobbler_beat
+    command: celery -A src.tasks beat --loglevel=${LOG_LEVEL:-INFO}
+    environment:
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASS=${DB_PASS:-postgres}
+      - DB_NAME=${DB_NAME:-musicmuse_db}
+      - REDIS_URL=redis://redis:6379/0
+      - SPOTIPY_CLIENT_ID=${SPOTIPY_CLIENT_ID}
+      - SPOTIPY_CLIENT_SECRET=${SPOTIPY_CLIENT_SECRET}
+      - SPOTIPY_REDIRECT_URI=${SPOTIPY_REDIRECT_URI}
+      - SCROBBLE_INTERVAL=${SCROBBLE_INTERVAL:-3600}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - scrobbler_network
+      - default
+
+  # Database initialization
+  db-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: live_scrobbler_db_init
+    command: python -m src.db_init
+    environment:
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASS=${DB_PASS:-postgres}
+      - DB_NAME=${DB_NAME:-musicmuse_db}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    restart: on-failure
+    networks:
+      - scrobbler_network
+
+volumes:
+  redis_data:
+
+networks:
+  scrobbler_network:
+    external: true
+    name: ${EXTERNAL_NETWORK:-host} 

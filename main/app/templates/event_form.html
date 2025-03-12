@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block header_title %}
+  {% if event %}Edit Event{% else %}New Event{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="event-form-container">
+  <form method="POST" class="event-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    
+    <div class="form-group">
+      <label for="name">Event Name*</label>
+      <input type="text" id="name" name="name" value="{{ event.name if event else '' }}" required>
+    </div>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label for="start_date">Start Date*</label>
+        <input type="date" id="start_date" name="start_date" value="{{ event.start_date if event else '' }}" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="end_date">End (leave blank if ongoing)</label>
+        <input type="date" id="end_date" name="end_date" value="{{ event.end_date if event else '' }}">
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label for="category">Category</label>
+      <select id="category" name="category">
+        <option value="Relationship" {% if event and event.category == 'Relationship' %}selected{% endif %}>Relationship</option>
+        <option value="Education" {% if event and event.category == 'Education' %}selected{% endif %}>Education</option>
+        <option value="Career" {% if event and event.category == 'Career' %}selected{% endif %}>Career</option>
+        <option value="Travel" {% if event and event.category == 'Travel' %}selected{% endif %}>Travel</option>
+        <option value="Health" {% if event and event.category == 'Health' %}selected{% endif %}>Health</option>
+        <option value="Personal" {% if event and event.category == 'Personal' %}selected{% endif %}>Personal</option>
+        <option value="Other" {% if event and event.category == 'Other' %}selected{% endif %}>Other</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="4">{{ event.description if event else '' }}</textarea>
+    </div>
+    
+    <div class="form-group">
+      <label for="color">Color</label>
+      <input type="color" id="color" name="color" value="{{ event.color if event else '#5c6bc0' }}">
+    </div>
+    
+    <div class="form-actions">
+      <a href="{{ url_for('event.view_events') }}" class="cancel-button">Cancel</a>
+      <button type="submit" class="save-button">
+        {% if event %}Save Changes{% else %}Create Event{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

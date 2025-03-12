@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block header_title %}{% endblock %}
+
+{% block content %}
+<div class="detail-page-container track-page">
+  <!-- Navigation header -->
+  <div class="detail-header">
+    <a href="javascript:history.back()" class="back-button" title="Go back to previous page">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    
+    <div class="detail-identity" style="text-align: center;">
+      <h2 class="detail-title">{{ track_name }}</h2>
+      <div class="detail-subtitle">
+        <a href="{{ url_for('item_pages.artist_page', artist_id=artist_id) }}" class="artist-link">
+          {{ artist_name }}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Track details -->
+  <div class="track-details">
+    <a href="{{ url_for('item_pages.album_page', album_id=album_id) }}" class="album-link">
+      {% if image_url %}
+      <div class="track-album-image" data-bg-url="{{ image_url }}"></div>
+      {% else %}
+      <div class="track-album-image" data-bg-url="{{ url_for('static', filename='img/default-album.png') }}"></div>
+      {% endif %}
+    </a>
+    
+    <div class="track-info">
+      
+      <div class="track-stats">
+        <div class="stat-item">
+          <div class="stat-label">Your Total Streams</div>
+          <div class="stat-value">{{ total_streams }}</div>
+        </div>
+        
+        <div class="stat-item">
+          <div class="stat-label">Hours Listened</div>
+          <div class="stat-value">{{ hours_listened }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

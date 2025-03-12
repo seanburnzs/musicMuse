@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{{ title if title else "MusicMuse" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/musicMuse.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/detail_pages.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- jQuery for all pages -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    /* Loading indicator */
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+    .loading::before {
+      content: '';
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      border: 2px solid #ccc;
+      border-top-color: #333;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Error message */
+    .error {
+      color: #e74c3c;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    /* Profile search bar */
+    .profile-search-container {
+      text-align: center;
+      margin: 0 auto;
+      max-width: 500px;
+      position: absolute;
+      top: -4rem;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      padding: 0 15px;
+    }
+    
+    .profile-search-container.active .profile-search-input {
+      border-color: #5c6bc0;
+      box-shadow: 0 2px 8px rgba(92,107,192,0.2);
+    }
+    
+    .profile-search-form {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .profile-search-input {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      font-size: 14px;
+      transition: all 0.3s;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .profile-search-input:focus {
+      outline: none;
+      border-color: #5c6bc0;
+      box-shadow: 0 2px 8px rgba(92,107,192,0.2);
+    }
+    
+    .profile-search-button {
+      background: none;
+      border: none;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666;
+      cursor: pointer;
+      transition: color 0.3s;
+      z-index: 2;
+    }
+    
+    .profile-search-button:hover {
+      color: #5c6bc0;
+    }
+    
+    .profile-search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border-radius: 0 0 10px 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      z-index: 100;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+      transform: translateY(-10px);
+      opacity: 0;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    
+    .profile-search-results.active {
+      display: block;
+      transform: translateY(0);
+      opacity: 1;
+    }
+    
+    .profile-result-item {
+      padding: 10px 15px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background-color 0.2s;
+      cursor: pointer;
+    }
+    
+    .profile-result-item:hover {
+      background-color: #f5f5f5;
+    }
+    
+    .profile-result-item:last-child {
+      border-bottom: none;
+    }
+    
+    .profile-result-photo {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin-right: 10px;
+      background-size: cover;
+      background-position: center;
+      background-color: #eee;
+    }
+    
+    .profile-result-photo-placeholder {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      color: #999;
+    }
+    
+    .profile-result-name {
+      font-weight: 500;
+      color: #333;
+    }
+    
+    /* Impersonation modal specific styles */
+    .impersonation-tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
+    
+    .impersonation-tab-button {
+      padding: 10px 20px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-size: 1em;
+      color: #666;
+      transition: all 0.3s;
+    }
+    
+    .impersonation-tab-button:hover {
+      color: #5c6bc0;
+    }
+    
+    .impersonation-tab-button.active {
+      color: #5c6bc0;
+      border-bottom-color: #5c6bc0;
+      font-weight: 500;
+    }
+    
+    .impersonation-tab-content {
+      display: none;
+    }
+    
+    .impersonation-tab-content.active {
+      display: block;
+    }
+    
+    /* Header adjustments for search bar */
+    header {
+      padding-top: 60px;
+      position: relative;
+    }
+    
+    @media (max-width: 768px) {
+      .profile-search-container {
+        max-width: 90%;
+      }
+      
+      header {
+        padding-top: 50px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="home-button">
+    <a href="{{ url_for('main.index') }}" title="Home"><i class="fas fa-home"></i></a>
+  </div>
+  
+  <div class="user-menu">
+    {% if session.get('user_id') %}
+      <div class="dropdown">
+        <button class="dropbtn">
+          <i class="fas fa-user"></i>
+          <span>{{ session.get('username') }}</span>
+          <i class="fas fa-caret-down"></i>
+        </button>
+        <div class="dropdown-content">
+          <a href="{{ url_for('profile.profile') }}">Profile</a>
+          <a href="{{ url_for('profile.user_settings') }}">Settings</a>
+          {% if session.get('spotify_connected') %}
+          <a href="{{ url_for('profile.user_settings') }}#spotify-settings" class="spotify-connected">
+            <i class="fab fa-spotify"></i> Spotify Connected
+          </a>
+          {% else %}
+          <a href="{{ url_for('profile.connect_spotify') }}" class="spotify-connect">
+            <i class="fab fa-spotify"></i> Connect
+          </a>
+          {% endif %}
+          <a href="{{ url_for('auth.logout') }}">Logout</a>
+        </div>
+      </div>
+    {% else %}
+      <div class="auth-links">
+        <a href="{{ url_for('auth.login') }}">Login</a>
+        <a href="{{ url_for('auth.signup') }}">Sign Up</a>
+      </div>
+    {% endif %}
+  </div>
+  
+  <div class="container">
+    <header>
+      <div class="profile-search-container">
+        <form class="profile-search-form" action="{{ url_for('main.search_profiles') }}" method="GET">
+          <input type="text" class="profile-search-input" name="q" placeholder="Profile Search" autocomplete="off">
+        </form>
+        <div class="profile-search-results"></div>
+      </div>
+      <h1>{% block header_title %}{% endblock %}</h1>
+      <nav>
+        <a href="{{ url_for('analytics.top_items_page') }}">Hall</a> |
+        <a href="{{ url_for('analytics.music_muse') }}">Ask</a> |
+        <a href="{{ url_for('social.compare_shortcut') }}">Compare</a> |
+        <a href="{{ url_for('analytics.charts') }}">Charts</a>
+      </nav>
+    </header>
+
+    {% if session.get('impersonating') %}
+    <div class="impersonation-banner">
+      <div class="impersonation-info">
+        <i class="fas fa-user-secret"></i>
+        <span>You are viewing as <strong>{{ session.impersonating.username }}</strong></span>
+      </div>
+      <div class="impersonation-actions">
+        <button id="changeImpersonationBtn" class="change-impersonation">
+          <i class="fas fa-exchange-alt"></i> Change User
+        </button>
+        <form method="POST" action="{{ url_for('auth.impersonate_user') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          {% if request.path.startswith('/profile/') %}
+            <input type="hidden" name="redirect_to" value="{{ url_for('profile.profile') }}">
+          {% else %}
+            <input type="hidden" name="redirect_to" value="{{ request.path }}">
+          {% endif %}
+          <button type="submit" class="stop-impersonation">
+            <i class="fas fa-sign-out-alt"></i> Exit Impersonation
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+      <p>MusicMuse &copy; 2025</p>
+    </footer>
+  </div>
+  
+  <!-- Impersonation Modal -->
+  <div id="impersonationModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>View as Another User</h2>
+      
+      <div class="impersonation-tabs">
+        <button class="impersonation-tab-button active" data-tab="friends">Following</button>
+        <button class="impersonation-tab-button" data-tab="search">Search</button>
+      </div>
+      
+      <div id="friends-tab" class="impersonation-tab-content active">
+        <h3>Following</h3>
+        <div class="friends-list">
+          <!-- Friends list will be loaded dynamically via JavaScript -->
+          <p class="loading">Loading...</p>
+        </div>
+      </div>
+      
+      <div id="search-tab" class="impersonation-tab-content">
+        <h3>Search Users</h3>
+        <div class="search-container">
+          <input type="text" id="user-search" placeholder="Search by username...">
+          <div id="impersonation-search-results" class="search-results"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <button id="impersonateBtn" class="impersonate-floating-btn" title="View as another user">
+    <i class="fas fa-user-secret"></i>
+  </button>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Modal functionality
+      const modal = document.getElementById('impersonationModal');
+      const btn = document.getElementById('impersonateBtn');
+      const changeBtn = document.getElementById('changeImpersonationBtn');
+      const span = document.getElementsByClassName('close')[0];
+      const friendsTab = document.getElementById('friends-tab');
+      const friendsList = friendsTab ? friendsTab.querySelector('.friends-list') : null;
+      
+      // Function to load friends list
+      function loadFriendsList() {
+        if (friendsList) {
+          // Show loading indicator
+          friendsList.innerHTML = '<p class="loading">Loading...</p>';
+          
+          // Fetch friends list from API
+          fetch('/api/user_connections/following/{{ session.get("username", "") }}')
+            .then(response => response.json())
+            .then(data => {
+              if (!data.connections || data.connections.length === 0) {
+                friendsList.innerHTML = '<p class="no-friends">You don\'t follow anyone yet.</p>';
+                return;
+              }
+              
+              // Clear the list
+              friendsList.innerHTML = '';
+              
+              // Add each friend to the list
+              data.connections.forEach(friend => {
+                const friendItem = document.createElement('div');
+                friendItem.className = 'friend-item';
+                
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ url_for("auth.impersonate_user") }}';
+                
+                // Add CSRF token
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = 'csrf_token';
+                csrfToken.value = '{{ csrf_token }}';
+                
+                // Add redirect path
+                const redirectInput = document.createElement('input');
+                redirectInput.type = 'hidden';
+                redirectInput.name = 'redirect_to';
+                redirectInput.value = window.location.pathname;
+                
+                // Add username
+                const usernameInput = document.createElement('input');
+                usernameInput.type = 'hidden';
+                usernameInput.name = 'username';
+                usernameInput.value = friend.username;
+                
+                // Create button
+                const button = document.createElement('button');
+                button.type = 'submit';
+                button.className = 'friend-button';
+                
+                // Create photo element
+                const photoDiv = document.createElement('div');
+                photoDiv.className = 'friend-photo';
+                
+                if (friend.profile_picture) {
+                  const img = document.createElement('img');
+                  img.src = `/static/uploads/${friend.profile_picture}`;
+                  img.alt = `${friend.username}'s profile picture`;
+                  photoDiv.appendChild(img);
+                } else {
+                  const placeholder = document.createElement('div');
+                  placeholder.className = 'friend-photo-placeholder';
+                  const icon = document.createElement('i');
+                  icon.className = 'fas fa-user';
+                  placeholder.appendChild(icon);
+                  photoDiv.appendChild(placeholder);
+                }
+                
+                // Create name span
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'friend-name';
+                nameSpan.textContent = friend.username;
+                
+                // Assemble the elements
+                button.appendChild(photoDiv);
+                button.appendChild(nameSpan);
+                
+                form.appendChild(csrfToken);
+                form.appendChild(redirectInput);
+                form.appendChild(usernameInput);
+                form.appendChild(button);
+                
+                friendItem.appendChild(form);
+                friendsList.appendChild(friendItem);
+                
+                // Add event listener for form submission
+                form.addEventListener('submit', function(e) {
+                  // Special handling for profile pages
+                  const redirectInput = this.querySelector('input[name="redirect_to"]');
+                  if (redirectInput && redirectInput.value.startsWith('/profile/')) {
+                    // Redirect to the generic profile page instead
+                    redirectInput.value = '/profile';
+                  }
+                  
+                  // Add a small delay to show visual feedback before refreshing
+                  const button = this.querySelector('button');
+                  if (button) {
+                    button.classList.add('active');
+                    setTimeout(() => {
+                      // Let the form submit normally which will refresh the page
+                    }, 150);
+                  }
+                });
+              });
+            })
+            .catch(error => {
+              console.error('Error loading friends:', error);
+              friendsList.innerHTML = '<p class="error">Error loading friends list</p>';
+            });
+        }
+      }
+      
+      // Function to reset modal state
+      function resetImpersonationModal() {
+        // Reset tab buttons
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        tabButtons[0].classList.add('active'); // Activate first tab
+        
+        // Reset tab contents
+        tabContents.forEach(content => content.classList.remove('active'));
+        tabContents[0].classList.add('active'); // Show first tab content
+        
+        // Reset friends list
+        if (friendsList) {
+          friendsList.innerHTML = '<p class="loading">Loading...</p>';
+        }
+      }
+      
+      // Load friends list when modal is opened
+      if (btn) {
+        btn.onclick = function() {
+          resetImpersonationModal();
+          modal.style.display = 'block';
+          loadFriendsList();
+        }
+      }
+      
+      if (changeBtn) {
+        changeBtn.onclick = function() {
+          resetImpersonationModal();
+          modal.style.display = 'block';
+          loadFriendsList();
+        }
+      }
+      
+      if (span) {
+        span.onclick = function() {
+          modal.style.display = 'none';
+        }
+      }
+      
+      window.onclick = function(event) {
+        if (event.target == modal) {
+          modal.style.display = 'none';
+        }
+      }
+      
+      // Tab functionality
+      const tabButtons = document.querySelectorAll('.impersonation-tab-button');
+      const tabContents = document.querySelectorAll('.impersonation-tab-content');
+      
+      tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          // Remove active class from all buttons and contents
+          tabButtons.forEach(btn => btn.classList.remove('active'));
+          tabContents.forEach(content => content.classList.remove('active'));
+          
+          // Add active class to clicked button and corresponding content
+          this.classList.add('active');
+          const tabId = this.getAttribute('data-tab');
+          document.getElementById(tabId + '-tab').classList.add('active');
+          
+          // Load friends list if switching to friends tab
+          if (tabId === 'friends') {
+            loadFriendsList();
+          }
+        });
+      });
+      
+      // User search functionality
+      const userSearch = document.getElementById('user-search');
+      const searchResults = document.getElementById('impersonation-search-results');
+      
+      if (userSearch && searchResults) {
+        userSearch.addEventListener('input', function(e) {
+          // Stop propagation to prevent conflicts with other search inputs
+          e.stopPropagation();
+          
+          // Ensure we're handling events only from the user search input
+          if (e.target !== userSearch) {
+            return;
+          }
+          
+          const query = this.value.trim();
+          
+          if (query.length < 2) {
+            searchResults.innerHTML = '';
+            return;
+          }
+          
+          // Fetch users matching the query
+          fetch(`/api/search_users?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+              searchResults.innerHTML = '';
+              
+              if (!data.users || data.users.length === 0) {
+                searchResults.innerHTML = '<p class="no-results">No users found</p>';
+                return;
+              }
+              
+              data.users.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ url_for("auth.impersonate_user") }}';
+                
+                // Special handling for profile pages
+                let redirectPath = window.location.pathname;
+                if (redirectPath.startsWith('/profile/')) {
+                  // Redirect to the generic profile page instead
+                  redirectPath = '/profile';
+                }
+                
+                // Add CSRF token to dynamically created form
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = 'csrf_token';
+                csrfToken.value = '{{ csrf_token }}';
+                form.appendChild(csrfToken);
+                
+                const redirectInput = document.createElement('input');
+                redirectInput.type = 'hidden';
+                redirectInput.name = 'redirect_to';
+                redirectInput.value = redirectPath;
+                
+                const usernameInput = document.createElement('input');
+                usernameInput.type = 'hidden';
+                usernameInput.name = 'username';
+                usernameInput.value = user.username;
+                
+                const button = document.createElement('button');
+                button.type = 'submit';
+                button.className = 'user-button';
+                
+                // Create photo element
+                const photoDiv = document.createElement('div');
+                photoDiv.className = 'friend-photo';
+                
+                if (user.profile_picture) {
+                  const img = document.createElement('img');
+                  img.src = `/static/uploads/${user.profile_picture}`;
+                  img.alt = `${user.username}'s profile picture`;
+                  photoDiv.appendChild(img);
+                } else {
+                  const placeholder = document.createElement('div');
+                  placeholder.className = 'friend-photo-placeholder';
+                  const icon = document.createElement('i');
+                  icon.className = 'fas fa-user';
+                  placeholder.appendChild(icon);
+                  photoDiv.appendChild(placeholder);
+                }
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'friend-name';
+                nameSpan.textContent = user.username;
+                
+                button.appendChild(photoDiv);
+                button.appendChild(nameSpan);
+                
+                form.appendChild(csrfToken);
+                form.appendChild(redirectInput);
+                form.appendChild(usernameInput);
+                form.appendChild(button);
+                userItem.appendChild(form);
+                searchResults.appendChild(userItem);
+              });
+            })
+            .catch(error => {
+              console.error('Error searching users:', error);
+              searchResults.innerHTML = '<p class="error">Error searching users</p>';
+            });
+        });
+      }
+      
+      // Modify the friend buttons to ensure page refresh
+      const friendForms = document.querySelectorAll('.friend-item form');
+      if (friendForms && friendForms.length > 0) {
+        friendForms.forEach(form => {
+          form.addEventListener('submit', function(e) {
+            // Special handling for profile pages
+            const redirectInput = this.querySelector('input[name="redirect_to"]');
+            if (redirectInput && redirectInput.value.startsWith('/profile/')) {
+              // Redirect to the generic profile page instead
+              redirectInput.value = '/profile';
+            }
+            
+            // Add a small delay to show visual feedback before refreshing
+            const button = this.querySelector('button');
+            if (button) {
+              button.classList.add('active');
+              setTimeout(() => {
+                // Let the form submit normally which will refresh the page
+              }, 150);
+            }
+          });
+        });
+      }
+      
+      // Special handling for the exit impersonation button on profile pages
+      const exitImpersonationForm = document.querySelector('.impersonation-actions form');
+      if (exitImpersonationForm) {
+        const redirectInput = exitImpersonationForm.querySelector('input[name="redirect_to"]');
+        if (redirectInput && redirectInput.value.startsWith('/profile/')) {
+          // Redirect to the generic profile page instead
+          redirectInput.value = '/profile';
+        }
+      }
+    });
+  </script>
+  
+  <script>
+    // Common function to apply background images from data-bg-url attributes
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('[data-bg-url]').forEach(function(element) {
+        const bgUrl = element.getAttribute('data-bg-url');
+        if (bgUrl) {
+          element.style.backgroundImage = 'url(' + bgUrl + ')';
+        }
+      });
+      
+      // Add smooth page transitions for back buttons
+      document.querySelectorAll('.back-button').forEach(function(backBtn) {
+        backBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          // Add fade-out animation to the current page
+          document.querySelector('main').style.opacity = '0';
+          document.querySelector('main').style.transition = 'opacity 0.3s ease-out';
+          
+          // After animation completes, navigate back
+          setTimeout(function() {
+            window.history.back();
+          }, 300);
+        });
+      });
+    });
+  </script>
+  
+  <script>
+    // Profile search functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const searchInput = document.querySelector('.profile-search-input');
+      const searchResults = document.querySelector('.profile-search-results');
+      const searchForm = document.querySelector('.profile-search-form');
+      const searchContainer = document.querySelector('.profile-search-container');
+      
+      if (searchInput && searchResults && searchForm && searchContainer) {
+        // Handle input in search box
+        searchInput.addEventListener('input', function() {
+          const query = this.value.trim();
+          
+          if (query.length < 2) {
+            searchResults.classList.remove('active');
+            searchResults.innerHTML = '';
+            searchContainer.classList.remove('active');
+            return;
+          }
+          
+          // Show loading indicator
+          searchResults.classList.add('active');
+          searchResults.innerHTML = '<p class="loading">Searching...</p>';
+          searchContainer.classList.add('active');
+          
+          // Fetch users matching the query
+          fetch(`/api/search_users?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+              searchResults.innerHTML = '';
+              
+              if (!data.users || data.users.length === 0) {
+                searchResults.innerHTML = '<p class="no-results">No users found</p>';
+                return;
+              }
+              
+              // Add each user to the results
+              data.users.forEach(user => {
+                const resultItem = document.createElement('a');
+                resultItem.href = `/profile/${user.username}`;
+                resultItem.className = 'profile-result-item';
+                
+                // Create photo element
+                let photoElement;
+                if (user.profile_picture) {
+                  photoElement = document.createElement('div');
+                  photoElement.className = 'profile-result-photo';
+                  photoElement.style.backgroundImage = `url(/static/uploads/${user.profile_picture})`;
+                } else {
+                  photoElement = document.createElement('div');
+                  photoElement.className = 'profile-result-photo-placeholder';
+                  const icon = document.createElement('i');
+                  icon.className = 'fas fa-user';
+                  photoElement.appendChild(icon);
+                }
+                
+                // Create name element
+                const nameElement = document.createElement('span');
+                nameElement.className = 'profile-result-name';
+                nameElement.textContent = user.username;
+                
+                // Assemble the result item
+                resultItem.appendChild(photoElement);
+                resultItem.appendChild(nameElement);
+                searchResults.appendChild(resultItem);
+              });
+            })
+            .catch(error => {
+              console.error('Error searching users:', error);
+              searchResults.innerHTML = '<p class="error">Error searching users</p>';
+            });
+        });
+        
+        // Close search results when clicking outside
+        document.addEventListener('click', function(e) {
+          if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.classList.remove('active');
+            searchContainer.classList.remove('active');
+          }
+        });
+        
+        // Focus search input when clicking on the container
+        searchContainer.addEventListener('click', function(e) {
+          if (e.target !== searchInput) {
+            searchInput.focus();
+          }
+        });
+        
+        // Handle form submission
+        searchForm.addEventListener('submit', function(e) {
+          const query = searchInput.value.trim();
+          if (query.length < 2) {
+            e.preventDefault();
+          }
+        });
+        
+        // Handle keyboard navigation in search results
+        searchInput.addEventListener('keydown', function(e) {
+          const results = searchResults.querySelectorAll('.profile-result-item');
+          if (!results.length) return;
+          
+          const activeResult = searchResults.querySelector('.profile-result-item.active');
+          
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (!activeResult) {
+              results[0].classList.add('active');
+            } else {
+              activeResult.classList.remove('active');
+              const nextResult = activeResult.nextElementSibling;
+              if (nextResult && nextResult.classList.contains('profile-result-item')) {
+                nextResult.classList.add('active');
+              } else {
+                results[0].classList.add('active');
+              }
+            }
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!activeResult) {
+              results[results.length - 1].classList.add('active');
+            } else {
+              activeResult.classList.remove('active');
+              const prevResult = activeResult.previousElementSibling;
+              if (prevResult && prevResult.classList.contains('profile-result-item')) {
+                prevResult.classList.add('active');
+              } else {
+                results[results.length - 1].classList.add('active');
+              }
+            }
+          } else if (e.key === 'Enter' && activeResult) {
+            e.preventDefault();
+            window.location.href = activeResult.href;
+          }
+        });
+      }
+    });
+  </script>
+  
+  {% block scripts %}{% endblock %}
+</body>
+</html>

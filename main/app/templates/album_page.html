@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block header_title %}{% endblock %}
+
+{% block content %}
+<div class="detail-page-container album-page">
+  <!-- Navigation header -->
+  <div class="detail-header">
+    <a href="javascript:history.back()" class="back-button" title="Go back to previous page">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    
+    <div class="detail-identity">
+      <h2 class="detail-title">{{ album_name }}</h2>
+      <div class="detail-subtitle">
+        <a href="{{ url_for('item_pages.artist_page', artist_id=artist_id) }}" class="artist-link">
+          {{ artist_name }}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- User stats for this album -->
+  <div class="user-album-stats">
+    <div class="stat-bubble">
+      <div class="stat-label">Your Total Streams</div>
+      <div class="stat-value">{{ user_stats.total_streams }}</div>
+    </div>
+    
+    <div class="stat-bubble">
+      <div class="stat-label">Your Top Track</div>
+      <div class="stat-value">
+        <a href="{{ url_for('item_pages.track_page', track_id=user_stats.top_track_id) }}" class="item-link">
+          {{ user_stats.top_track_name }}
+        </a>
+      </div>
+    </div>
+    
+    <div class="stat-bubble">
+      <div class="stat-label">Hours Listened</div>
+      <div class="stat-value">{{ user_stats.hours_listened }}</div>
+    </div>
+  </div>
+
+  <!-- Album's tracks -->
+  <div class="detail-section tracks-section">
+    <h3>Tracks</h3>
+    <div class="items-grid">
+      {% for track_id, track_name, image_url, total_streams in tracks %}
+        <div class="grid-item">
+          <a href="{{ url_for('item_pages.track_page', track_id=track_id) }}" class="item-link">
+            {% if image_url %}
+            <div class="item-image" data-bg-url="{{ image_url }}"></div>
+            {% else %}
+            <div class="item-image" data-bg-url="{{ url_for('static', filename='img/default-album.png') }}"></div>
+            {% endif %}
+            <div class="item-details">
+              <div class="item-name">{{ track_name }}</div>
+              <div class="item-stats">{{ total_streams }} streams</div>
+            </div>
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %} 

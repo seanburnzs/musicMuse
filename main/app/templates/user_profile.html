@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+{% block header_title %}{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+  <!-- Navigation header -->
+  <div class="profile-header">
+    <a href="javascript:history.back()" class="back-button">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    
+    <div class="profile-identity">
+      <div class="profile-photo">
+        {% if profile_picture %}
+          <img src="{{ url_for('static', filename='uploads/' + profile_picture) }}" alt="{{ username }}'s profile picture">
+        {% else %}
+          <div class="profile-photo-placeholder">
+            <i class="fas fa-user"></i>
+          </div>
+        {% endif %}
+      </div>
+      <h2 class="profile-username">{{ username }}</h2>
+    </div>
+    
+    {% if session.get('user_id') and not is_own_profile %}
+      <div class="follow-container">
+        {% if is_following %}
+          <form method="POST" action="{{ url_for('social.unfollow_user', username=username) }}">
+            <!-- Add CSRF token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="unfollow-button">
+              <i class="fas fa-user-minus"></i> Unfollow
+            </button>
+          </form>
+        {% else %}
+          <form method="POST" action="{{ url_for('social.follow_user', username=username) }}">
+            <!-- Add CSRF token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="follow-button">
+              <i class="fas fa-user-plus"></i> Follow
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="profile-menu">
+        <div class="dropdown">
+          <button class="dropdown-toggle">
+            <i class="fas fa-ellipsis-v"></i>
+          </button>
+          <div class="dropdown-menu">
+            <a href="#" class="dropdown-item" id="copy-url">Copy URL</a>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Rest of the template remains unchanged -->
+  <!-- Profile stats -->
+  <div class="profile-stats">
+    <div class="stat-item">
+      <div class="stat-value">{{ total_streams }}</div>
+      <div class="stat-label">Streams</div>
+    </div>
+    <div class="stat-item clickable" id="followers-stat">
+      <div class="stat-value">{{ followers_count }}</div>
+      <div class="stat-label">Followers</div>
+    </div>
+    <div class="stat-item clickable" id="following-stat">
+      <div class="stat-value">{{ following_count }}</div>
+      <div class="stat-label">Following</div>
+    </div>
+  </div>
+
+  <!-- Profile grid -->
+  <div class="profile-grid">
+    <!-- Vault section -->
+    <div class="profile-section hall-of-fame">
+      <div class="section-header">
+        <h3>Vault <span class="section-subtitle">All-time favorites</span></h3>
+        {% if is_own_profile %}
+          <a href="{{ url_for('profile.customize_hall_of_fame') }}" class="edit-hof-button">
+            <i class="fas fa-edit"></i> Edit
+          </a>
+        {% endif %}
+      </div>
+      
+      <!-- Top Artists -->
+      <div class="item-category">
+        <h4>Top Artists</h4>
+        <div class="item-row">
+          {% for artist_id, artist_name, image_url, total_streams, total_hours in hall_of_fame.artists %}
+            <div class="profile-item">
+              <a href="{{ url_for('item_pages.artist_page', artist_id=artist_id) }}" class="item-link">
+                <div class="item-image" style="background-image: url('{{ image_url if image_url else url_for('static', filename='img/default-artist.png') }}')"></div>
+                <div class="item-details">
+                  <div class="item-name">{{ artist_name }}</div>
+                  <div class="item-stats">{{ total_streams }} streams • {{ total_hours }} hrs</div>
+                </div>
+              </a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <!-- Top Albums -->
+      <div class="item-category">
+        <h4>Top Albums</h4>
+        <div class="item-row">
+          {% for album_id, album_name, artist_name, image_url, total_streams, total_hours, artist_id in hall_of_fame.albums %}
+            <div class="profile-item">
+              <a href="{{ url_for('item_pages.album_page', album_id=album_id) }}" class="item-link">
+                <div class="item-image" style="background-image: url('{{ image_url if image_url else url_for('static', filename='img/default-album.png') }}')"></div>
+                <div class="item-details">
+                  <div class="item-name">{{ album_name }}</div>
+                  <div class="item-artist">
+                    <a href="{{ url_for('item_pages.artist_page', artist_id=artist_id) }}" class="artist-link">
+                      {{ artist_name }}
+                    </a>
+                  </div>
+                  <div class="item-stats">{{ total_streams }} streams • {{ total_hours }} hrs</div>
+                </div>
+              </a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <!-- Top Tracks -->
+      <div class="item-category">
+        <h4>Top Tracks</h4>
+        <div class="item-row">
+          {% for track_id, track_name, artist_name, image_url, total_streams, total_hours, artist_id in hall_of_fame.tracks %}
+            <div class="profile-item">
+              <a href="{{ url_for('item_pages.track_page', track_id=track_id) }}" class="item-link">
+                <div class="item-image" style="background-image: url('{{ image_url if image_url else url_for('static', filename='img/default-album.png') }}')"></div>
+                <div class="item-details">
+                  <div class="item-name">{{ track_name }}</div>
+                  <div class="item-artist">
+                    <a href="{{ url_for('item_pages.artist_page', artist_id=artist_id) }}" class="artist-link">
+                      {{ artist_name }}
+                    </a>
+                  </div>
+                  <div class="item-stats">{{ total_streams }} streams • {{ total_hours }} hrs</div>
+                </div>
+              </a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Recents section (formerly Showcase) -->
+    <div class="profile-section recents">
+      <h3>Recents <span class="section-subtitle">Last 30 days</span></h3>
+      
+      <!-- Current Top Artists -->
+      <div class="item-category">
+        <h4>Current Artists</h4>
+        <div class="item-row">
+          {% for artist_id, artist_name, image_url, total_streams, total_hours in recents.artists %}
+            <div class="profile-item">
+              <a href="{{ url_for('item_pages.artist_page', artist_id=artist_id) }}" class="item-link">
+                <div class="item-image" style="background-image: url('{{ image_url if image_url else url_for('static', filename='img/default-artist.png') }}')"></div>
+                <div class="item-details">
+                  <div class="item-name">{{ artist_name }}</div>
+                  <div class="item-stats">{{ total_streams }} streams • {{ total_hours }} hrs</div>
+                </div>
+              </a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <!-- Current Top Albums -->
+      <div class="item-category">
+        <h4>Current Albums</h4>
+        <div class="item-row">
+          {% for album_id, album_name, artist_name, image_url, total_streams, total_hours, artist_id in recents.albums %}
+            <div class="profile-item">
+              <a href="{{ url_for('item_pages.album_page', album_id=album_id) }}" class="item-link">
+                <div class="item-image" style="background-image: url('{{ image_url if image_url else url_for('static', filename='img/default-album.png') }}')"></div>
+                <div class="item-details">
+                  <div class="item-name">{{ album_name }}</div>
+                  <div class="item-artist">
+                    <a href="{{ url_for('item_pages.artist_page', artist_id=artist_id) }}" class="artist-link">
+                      {{ artist_name }}
+                    </a>
+                  </div>
+                  <div class="item-stats">{{ total_streams }} streams • {{ total_hours }} hrs</div>
+                </div>
+              </a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <!-- Current Top Tracks -->
+      <div class="item-category">
+        <h4>Current Tracks</h4>
+        <div class="item-row">
+          {% for track_id, track_name, artist_name, image_url, total_streams, total_hours, artist_id in recents.tracks %}
+            <div class="profile-item">
+              <a href="{{ url_for('item_pages.track_page', track_id=track_id) }}" class="item-link">
+                <div class="item-image" style="background-image: url('{{ image_url if image_url else url_for('static', filename='img/default-album.png') }}')"></div>
+                <div class="item-details">
+                  <div class="item-name">{{ track_name }}</div>
+                  <div class="item-artist">
+                    <a href="{{ url_for('item_pages.artist_page', artist_id=artist_id) }}" class="artist-link">
+                      {{ artist_name }}
+                    </a>
+                  </div>
+                  <div class="item-stats">{{ total_streams }} streams • {{ total_hours }} hrs</div>
+                </div>
+              </a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Life Events section -->
+    <div class="profile-section events">
+      <div class="section-header">
+        <h3>Life Events</h3>
+        {% if is_own_profile %}
+          <a href="{{ url_for('event.new_event') }}" class="add-event-button">
+            <i class="fas fa-plus"></i> Add Event
+          </a>
+        {% endif %}
+      </div>
+      
+      {% if events_visible %}
+        <div class="events-list">
+          {% if events %}
+            {% for event in events %}
+              <div class="event-card" style="border-left-color: {{ event.color }}">
+                <div class="event-header">
+                  <h4 class="event-name">{{ event.name }}</h4>
+                  <div class="event-actions">
+                    <span class="event-category">{{ event.category }}</span>
+                    {% if is_own_profile %}
+                      <div class="event-menu">
+                        <button class="event-menu-toggle">
+                          <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="event-menu-dropdown">
+                          <a href="{{ url_for('event.edit_event', event_id=event.event_id) }}" class="event-menu-item">
+                            <i class="fas fa-edit"></i> Edit
+                          </a>
+                          <button class="event-menu-item delete-event" data-event-id="{{ event.event_id }}">
+                            <i class="fas fa-trash"></i> Delete
+                          </button>
+                        </div>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="event-dates">
+                  {{ event.start_date }} - 
+                  {% if event.end_date %}
+                    {{ event.end_date }}
+                  {% else %}
+                    Present
+                  {% endif %}
+                </div>
+                {% if event.description %}
+                  <div class="event-description">{{ event.description }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="no-events">No life events shared</div>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="events-private">
+          <div class="lock-icon">
+            <i class="fas fa-lock"></i>
+          </div>
+          <p>This user's life events are private</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Dropdown menu functionality
+    const dropdownToggle = document.querySelector('.dropdown-toggle');
+    const dropdownMenu = document.querySelector('.dropdown-menu');
+    
+    if (dropdownToggle) {
+      dropdownToggle.addEventListener('click', function() {
+        dropdownMenu.classList.toggle('show');
+      });
+      
+      // Close dropdown when clicking outside
+      window.addEventListener('click', function(event) {
+        if (!event.target.matches('.dropdown-toggle') && !event.target.matches('.fa-ellipsis-v')) {
+          if (dropdownMenu.classList.contains('show')) {
+            dropdownMenu.classList.remove('show');
+          }
+        }
+      });
+    }
+    
+    // Copy URL functionality
+    const copyUrlButton = document.getElementById('copy-url');
+    if (copyUrlButton) {
+      copyUrlButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        navigator.clipboard.writeText(window.location.href)
+          .then(() => {
+            alert('Profile URL copied to clipboard!');
+          })
+          .catch(err => {
+            console.error('Failed to copy URL: ', err);
+          });
+      });
+    }
+    
+    // Event menu toggle functionality
+    const eventMenuToggles = document.querySelectorAll('.event-menu-toggle');
+    
+    eventMenuToggles.forEach(toggle => {
+      toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const dropdown = this.nextElementSibling;
+        dropdown.classList.toggle('show');
+      });
+    });
+    
+    // Close event menus when clicking outside
+    window.addEventListener('click', function(event) {
+      if (!event.target.matches('.event-menu-toggle') && !event.target.matches('.fa-ellipsis-v')) {
+        const dropdowns = document.querySelectorAll('.event-menu-dropdown');
+        dropdowns.forEach(dropdown => {
+          if (dropdown.classList.contains('show')) {
+            dropdown.classList.remove('show');
+          }
+        });
+      }
+    });
+    
+    // Delete event functionality
+    const deleteButtons = document.querySelectorAll('.delete-event');
+    
+    deleteButtons.forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+        const eventId = this.getAttribute('data-event-id');
+        
+        if (confirm('Are you sure you want to delete this event?')) {
+          // Create and submit a form to delete the event
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = "{{ url_for('event.delete_event', event_id=0) }}".replace('0', eventId);
+          
+          // Add CSRF token to dynamically created form
+          const csrfToken = document.createElement('input');
+          csrfToken.type = 'hidden';
+          csrfToken.name = 'csrf_token';
+          csrfToken.value = '{{ csrf_token }}';
+          
+          form.appendChild(csrfToken);
+          document.body.appendChild(form);
+          form.submit();
+        }
+      });
+    });
+  });
+</script>
+
+<!-- Followers/Following Modal -->
+<div id="connections-modal" class="modal">
+  <div class="modal-content">
+    <span class="close" id="close-connections">&times;</span>
+    <h2 id="connections-title">Connections</h2>
+    
+    <div class="connections-tabs">
+      <button class="tab-button" id="followers-tab-btn" data-tab="followers">Followers</button>
+      <button class="tab-button" id="following-tab-btn" data-tab="following">Following</button>
+    </div>
+    
+    <div id="followers-tab" class="tab-content">
+      <div class="connections-list" id="followers-list">
+        <div class="loading-spinner">
+          <i class="fas fa-spinner fa-spin"></i>
+          <span>Loading...</span>
+        </div>
+      </div>
+    </div>
+    
+    <div id="following-tab" class="tab-content">
+      <div class="connections-list" id="following-list">
+        <div class="loading-spinner">
+          <i class="fas fa-spinner fa-spin"></i>
+          <span>Loading...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Modal functionality for followers/following
+  document.addEventListener('DOMContentLoaded', function() {
+    const connectionsModal = document.getElementById('connections-modal');
+    const closeButton = document.getElementById('close-connections');
+    const followersStatButton = document.getElementById('followers-stat');
+    const followingStatButton = document.getElementById('following-stat');
+    const followersTabBtn = document.getElementById('followers-tab-btn');
+    const followingTabBtn = document.getElementById('following-tab-btn');
+    const followersTab = document.getElementById('followers-tab');
+    const followingTab = document.getElementById('following-tab');
+    const connectionsTitle = document.getElementById('connections-title');
+    
+    // Function to activate a tab
+    function activateTab(tabId) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+      });
+      
+      // Show the selected tab
+      document.getElementById(tabId).style.display = 'block';
+      
+      // Update active state of tab buttons
+      document.querySelectorAll('.connections-tabs .tab-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      document.querySelector(`.tab-button[data-tab="${tabId.replace('-tab', '')}"]`).classList.add('active');
+      
+      // Update the title
+      connectionsTitle.textContent = tabId.replace('-tab', '').charAt(0).toUpperCase() + tabId.replace('-tab', '').slice(1);
+    }
+    
+    // Event handlers for buttons
+    followersStatButton.addEventListener('click', function() {
+      connectionsModal.style.display = 'block';
+      activateTab('followers-tab');
+      loadConnections('followers');
+    });
+    
+    followingStatButton.addEventListener('click', function() {
+      connectionsModal.style.display = 'block';
+      activateTab('following-tab');
+      loadConnections('following');
+    });
+    
+    // Tab switching
+    followersTabBtn.addEventListener('click', function() {
+      activateTab('followers-tab');
+      loadConnections('followers');
+    });
+    
+    followingTabBtn.addEventListener('click', function() {
+      activateTab('following-tab');
+      loadConnections('following');
+    });
+    
+    // Close button
+    closeButton.addEventListener('click', function() {
+      connectionsModal.style.display = 'none';
+    });
+    
+    // Close when clicking outside
+    window.addEventListener('click', function(event) {
+      if (event.target == connectionsModal) {
+        connectionsModal.style.display = 'none';
+      }
+    });
+    
+    // Function to load connections
+    function loadConnections(type) {
+      const list = document.getElementById(`${type}-list`);
+      list.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><span>Loading...</span></div>';
+      
+      fetch(`/api/user_connections/${type}/{{ username }}`)
+        .then(response => response.json())
+        .then(data => {
+          list.innerHTML = '';
+          
+          if (data.connections.length === 0) {
+            list.innerHTML = `<p class="no-connections">No ${type} found</p>`;
+            return;
+          }
+          
+          data.connections.forEach(user => {
+            const item = document.createElement('div');
+            item.className = 'connection-item';
+            
+            const profileLink = document.createElement('a');
+            profileLink.href = `/profile/${user.username}`;
+            profileLink.className = 'connection-profile-link';
+            
+            const photoDiv = document.createElement('div');
+            photoDiv.className = 'connection-photo';
+            
+            if (user.profile_picture) {
+              const img = document.createElement('img');
+              img.src = `/static/uploads/${user.profile_picture}`;
+              img.alt = `${user.username}'s profile picture`;
+              photoDiv.appendChild(img);
+            } else {
+              const placeholder = document.createElement('div');
+              placeholder.className = 'connection-photo-placeholder';
+              const icon = document.createElement('i');
+              icon.className = 'fas fa-user';
+              placeholder.appendChild(icon);
+              photoDiv.appendChild(placeholder);
+            }
+            
+            const userInfo = document.createElement('div');
+            userInfo.className = 'connection-info';
+            
+            const username = document.createElement('span');
+            username.className = 'connection-username';
+            username.textContent = user.username;
+            
+            userInfo.appendChild(username);
+            profileLink.appendChild(photoDiv);
+            profileLink.appendChild(userInfo);
+            
+            item.appendChild(profileLink);
+            
+            // Add follow/unfollow button if user is logged in and not viewing their own profile
+            if ({{ 'true' if session.get('user_id') and username != session.get('username') else 'false' }}) {
+              const actionDiv = document.createElement('div');
+              actionDiv.className = 'connection-action';
+              
+              // We'll need to implement this in a future update with proper status checks
+              // For now just add a placeholder button
+              const actionButton = document.createElement('button');
+              actionButton.className = 'follow-button small';
+              actionButton.innerHTML = '<i class="fas fa-user-plus"></i>';
+              
+              actionDiv.appendChild(actionButton);
+              item.appendChild(actionDiv);
+            }
+            
+            list.appendChild(item);
+          });
+        })
+        .catch(error => {
+          console.error('Error loading connections:', error);
+          list.innerHTML = '<p class="error">Error loading connections</p>';
+        });
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,1189 @@
+{% extends "base.html" %}
+
+{% block header_title %}Account Settings{% endblock %}
+
+{% block content %}
+<style>
+  /* Chart styling for better social sharing */
+  .chart-wrapper {
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: background-color 0.3s ease;
+  }
+  
+  /* Make legend items appear clickable */
+  .chart-canvas-container ul li {
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s, transform 0.1s;
+  }
+  
+  .chart-canvas-container ul li:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
+  }
+  
+  .chart-wrapper.dark-mode .chart-canvas-container ul li:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Style the instruction text */
+  .chart-instruction {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 15px;
+    color: #666;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .chart-wrapper.dark-mode .chart-instruction {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+  }
+  
+  /* Dark mode for chart */
+  .chart-wrapper.dark-mode {
+    background-color: #121212;
+    color: #e0e0e0;
+  }
+  
+  .chart-wrapper.dark-mode .chart-actions button {
+    background-color: #3a0ca3;
+  }
+  
+  .chart-canvas-container {
+    height: 500px;
+    width: 100%;
+    position: relative;
+    margin-bottom: 40px; /* Add padding at the bottom of the chart */
+  }
+  
+  .chart-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 15px;
+    gap: 10px;
+  }
+  
+  .chart-download-btn, .chart-theme-btn {
+    background-color: #4361ee;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+  }
+  
+  .chart-download-btn:hover, .chart-theme-btn:hover {
+    background-color: #3a0ca3;
+  }
+  
+  .chart-placeholder {
+    text-align: center;
+    padding: 60px 0;
+    color: #666;
+    font-style: italic;
+  }
+  
+  /* Custom color picker */
+  .color-picker-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .color-picker-content {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    width: 300px;
+    max-width: 90%;
+  }
+  
+  .color-picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  
+  .color-picker-header h3 {
+    margin: 0;
+  }
+  
+  .color-picker-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #666;
+  }
+  
+  .color-picker-input {
+    width: 100%;
+    margin-bottom: 15px;
+  }
+  
+  .color-picker-presets {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+  
+  .color-preset {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  
+  .color-preset:hover {
+    transform: scale(1.1);
+  }
+  
+  .color-picker-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  
+  .color-picker-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .color-picker-apply {
+    background-color: #4361ee;
+    color: white;
+  }
+  
+  .color-picker-cancel {
+    background-color: #f5f5f5;
+    color: #333;
+  }
+  
+  /* Background selector */
+  .bg-selector-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .bg-selector-content {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    width: 350px;
+    max-width: 90%;
+  }
+  
+  .bg-selector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  
+  .bg-selector-header h3 {
+    margin: 0;
+  }
+  
+  .bg-selector-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #666;
+  }
+  
+  .bg-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .bg-option {
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  
+  .bg-option.selected {
+    border-color: #4361ee;
+    transform: scale(1.05);
+  }
+  
+  .bg-option:hover {
+    transform: scale(1.05);
+  }
+  
+  .bg-preview {
+    width: 100%;
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  .bg-light {
+    background-color: #ffffff;
+    color: #333333;
+  }
+  
+  .bg-dark {
+    background-color: #121212;
+    color: #e0e0e0;
+  }
+  
+  .bg-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  .bg-blue {
+    background-color: #EFF6FF;
+    color: #1E40AF;
+  }
+  
+  .bg-selector-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  
+  .bg-selector-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .bg-selector-download {
+    background-color: #4361ee;
+    color: white;
+  }
+  
+  .bg-selector-cancel {
+    background-color: #f5f5f5;
+    color: #333;
+  }
+  
+  /* Improved chart loading spinner */
+  #chart-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+  }
+  
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #4361ee;
+    animation: spin 1s ease-in-out infinite;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  /* Colors customization panel */
+  .colors-panel {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+  }
+  
+  .colors-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  
+  .colors-panel-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  
+  .colors-panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .dataset-colors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .dataset-color-item {
+    display: flex;
+    align-items: center;
+    background-color: white;
+    border-radius: 6px;
+    padding: 8px 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    width: calc(50% - 5px);
+    max-width: 300px;
+  }
+  
+  .color-preview {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    margin-right: 10px;
+    cursor: pointer;
+    border: 1px solid #ddd;
+  }
+  
+  .color-label {
+    flex: 1;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .background-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .bg-option {
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: border-color 0.2s;
+    width: 120px;
+  }
+  
+  .bg-option.selected {
+    border-color: #4361ee;
+  }
+  
+  .bg-preview {
+    width: 100%;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  
+  .randomize-button {
+    align-self: flex-start;
+    margin-bottom: 15px;
+  }
+  
+  /* Spotify Settings */
+  .spotify-section {
+    margin-top: 30px;
+    margin-bottom: 30px;
+  }
+  
+  .spotify-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+  
+  .spotify-icon {
+    color: #1DB954;
+    font-size: 24px;
+  }
+  
+  .spotify-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-left: 10px;
+  }
+  
+  .spotify-connected {
+    background-color: #1DB954;
+    color: white;
+  }
+  
+  .spotify-disconnected {
+    background-color: #f8f9fa;
+    color: #666;
+  }
+  
+  .spotify-actions {
+    margin-top: 15px;
+  }
+  
+  .spotify-actions button, .spotify-actions a {
+    background-color: #1DB954;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 8px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: background-color 0.2s;
+  }
+  
+  .spotify-disconnect {
+    background-color: #e74c3c !important;
+  }
+  
+  .spotify-actions button:hover, .spotify-actions a:hover {
+    opacity: 0.9;
+  }
+  
+  .spotify-toggle {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+    margin-right: 10px;
+  }
+  
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+  }
+  
+  .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+  
+  input:checked + .toggle-slider {
+    background-color: #1DB954;
+  }
+  
+  input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+  }
+  
+  /* Analytics grid layout */
+  .analytics-section {
+    margin-bottom: 30px;
+  }
+  
+  .analytics-section h3 {
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  
+  .analytics-card {
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .analytics-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  }
+  
+  .analytics-icon {
+    width: 50px;
+    height: 50px;
+    background-color: #f0f4ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    color: #4361ee;
+    font-size: 20px;
+  }
+  
+  .analytics-details {
+    flex: 1;
+  }
+  
+  .analytics-details h4 {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .analytics-details p {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  /* Responsive grid */
+  @media (max-width: 992px) {
+    .analytics-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (max-width: 576px) {
+    .analytics-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  /* Analytics loading state */
+  .analytics-card .loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #4361ee;
+    animation: spin 1s ease-in-out infinite;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  .analytics-card.loading {
+    position: relative;
+  }
+  
+  .analytics-card.loading::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+</style>
+
+<!-- CSRF Token for AJAX requests -->
+<meta name="csrf-token" content="{{ csrf_token }}">
+
+<div class="settings-container">
+  <div class="settings-sidebar">
+    <div class="settings-nav">
+      <a href="#profile" class="settings-nav-item active">Profile</a>
+      <a href="#privacy" class="settings-nav-item">Privacy</a>
+      <a href="#data" class="settings-nav-item">Streaming Data</a>
+      <a href="#analytics" class="settings-nav-item">Analytics</a>
+    </div>
+  </div>
+  
+  <div class="settings-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    
+    <section id="profile" class="settings-section">
+      <h2>Profile Information</h2>
+      
+      <form method="POST" action="{{ url_for('profile.user_settings') }}" enctype="multipart/form-data" class="settings-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="form_type" value="profile">
+        
+        <div class="profile-picture-container">
+          <div class="profile-picture">
+            {% if user_info[2] %}
+              <img src="{{ url_for('static', filename='uploads/' + user_info[2]) }}" alt="Profile Picture">
+            {% else %}
+              <div class="profile-picture-placeholder">
+                <i class="fas fa-user"></i>
+              </div>
+            {% endif %}
+          </div>
+          
+          <div class="profile-picture-upload">
+            <label for="profile_picture" class="upload-button">
+              <i class="fas fa-camera"></i> Change Picture
+            </label>
+            <input type="file" id="profile_picture" name="profile_picture" accept="image/*" style="display: none;">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" value="{{ user_info[0] }}" disabled>
+          <small>Username cannot be changed</small>
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" value="{{ user_info[1] }}">
+        </div>
+        
+        <button type="submit" class="save-button">Save Profile</button>
+      </form>
+    </section>
+    
+    <section id="privacy" class="settings-section" style="display: none;">
+      <h2>Privacy Settings</h2>
+      
+      <form method="POST" action="{{ url_for('profile.user_settings') }}" class="settings-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="form_type" value="privacy">
+        
+        <div class="form-group">
+          <label for="impersonation_privacy">Who can impersonate you?</label>
+          <select id="impersonation_privacy" name="impersonation_privacy">
+            <option value="everyone" {% if settings[0] == 'everyone' %}selected{% endif %}>Everyone</option>
+            <option value="friends" {% if settings[0] == 'friends' %}selected{% endif %}>Friends Only</option>
+            <option value="private" {% if settings[0] == 'private' %}selected{% endif %}>No One</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="events_privacy">Who can see your events?</label>
+          <select id="events_privacy" name="events_privacy">
+            <option value="everyone" {% if settings[1] == 'everyone' %}selected{% endif %}>Everyone</option>
+            <option value="friends" {% if settings[1] == 'friends' %}selected{% endif %}>Friends Only</option>
+            <option value="private" {% if settings[1] == 'private' %}selected{% endif %}>No One</option>
+          </select>
+        </div>
+        
+        <button type="submit" class="save-button">Save Privacy Settings</button>
+      </form>
+    </section>
+    
+    <!-- Spotify Settings Section -->
+    <div id="spotify-settings" class="settings-section spotify-section">
+      <div class="settings-header spotify-header">
+        <i class="fab fa-spotify spotify-icon"></i>
+        <h2>Spotify Integration</h2>
+        {% if spotify_connected %}
+          <span class="spotify-status spotify-connected">
+            <i class="fas fa-check-circle"></i> Connected
+          </span>
+        {% else %}
+          <span class="spotify-status spotify-disconnected">
+            <i class="fas fa-times-circle"></i> Not Connected
+          </span>
+        {% endif %}
+      </div>
+      
+      <div class="settings-content">
+        <p>Connect your Spotify account to automatically track your listening history in real-time.</p>
+        
+        <div class="spotify-actions">
+          {% if spotify_connected %}
+            <form method="POST" action="{{ url_for('profile.user_settings') }}" class="settings-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="form_type" value="spotify">
+              <input type="hidden" name="action" value="disconnect">
+              <button type="submit" class="spotify-disconnect">
+                <i class="fas fa-unlink"></i> Disconnect from Spotify
+              </button>
+            </form>
+            
+            <div class="spotify-toggle">
+              <label class="toggle-switch">
+                <input type="checkbox" name="enable_scrobbling" {% if spotify_scrobbling_enabled %}checked{% endif %} 
+                      onchange="updateScrobblingStatus(this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+              <span>Enable live scrobbling</span>
+            </div>
+          {% else %}
+            <a href="{{ url_for('profile.connect_spotify') }}" class="spotify-connect">
+              <i class="fab fa-spotify"></i> Connect to Spotify
+            </a>
+          {% endif %}
+        </div>
+        
+        {% if spotify_connected %}
+          <div class="spotify-info">
+            <h3>About live scrobbling</h3>
+            <p>When enabled, your Spotify listening history will be automatically imported every hour.</p>
+            <p>You can disable this feature at any time using the toggle above.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    
+    <section id="data" class="settings-section" style="display: none;">
+      <h2>Streaming Data</h2>
+      
+      <div class="data-upload-container">
+        <p>Upload your streaming history to see personalized insights and statistics.</p>
+        
+        <div class="data-buttons">
+          <a href="{{ url_for('profile.upload_streaming_data') }}" class="upload-data-button">
+            <i class="fas fa-upload"></i> Upload Streaming Data
+          </a>
+          
+          <a href="{{ url_for('profile.previous_uploads') }}" class="previous-uploads-button">
+            <i class="fas fa-history"></i> Previous Uploads
+          </a>
+        </div>
+      </div>
+    </section>
+    
+    <section id="analytics" class="settings-section" style="display: none;">
+      <h2>Analytics</h2>
+      
+      <!-- User Analytics Section -->
+      <div class="analytics-section">
+        <h3>Your Listening Stats</h3>
+        <div class="analytics-grid">
+          <div class="analytics-card">
+            <div class="analytics-icon">
+              <i class="fas fa-fire"></i>
+            </div>
+            <div class="analytics-details">
+              <h4>Listening Streak</h4>
+              <p id="listening-streak">Loading...</p>
+              <small>Days in a row</small>
+            </div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-icon">
+              <i class="fas fa-calendar-day"></i>
+            </div>
+            <div class="analytics-details">
+              <h4>Most Active Day</h4>
+              <p id="most-active-day">Loading...</p>
+            </div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="analytics-details">
+              <h4>Most Active Time</h4>
+              <p id="most-active-time">Loading...</p>
+            </div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-icon">
+              <i class="fas fa-music"></i>
+            </div>
+            <div class="analytics-details">
+              <h4>Your Top Artist</h4>
+              <p id="most-popular-artist">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- App Analytics Section -->
+      <div class="analytics-section">
+        <h3>App Analytics</h3>
+        <div class="analytics-grid">
+          <div class="analytics-card">
+            <div class="analytics-icon">
+              <i class="fas fa-users"></i>
+            </div>
+            <div class="analytics-details">
+              <h4>Total Users</h4>
+              <p id="total-users">-</p>
+            </div>
+          </div>
+          
+          <div class="analytics-card">
+            <div class="analytics-icon">
+              <i class="fas fa-headphones"></i>
+            </div>
+            <div class="analytics-details">
+              <h4>Total Streams</h4>
+              <p id="total-streams">-</p>
+            </div>
+          </div>
+          
+          <div class="analytics-card">
+            <div class="analytics-icon">
+              <i class="fas fa-music"></i>
+            </div>
+            <div class="analytics-details">
+              <h4>Unique Tracks</h4>
+              <p id="unique-tracks">-</p>
+            </div>
+          </div>
+          
+          <div class="analytics-card">
+            <div class="analytics-icon">
+              <i class="fas fa-compact-disc"></i>
+            </div>
+            <div class="analytics-details">
+              <h4>Unique Albums</h4>
+              <p id="unique-albums">-</p>
+            </div>
+          </div>
+          
+          <div class="analytics-card">
+            <div class="analytics-icon">
+              <i class="fas fa-microphone"></i>
+            </div>
+            <div class="analytics-details">
+              <h4>Unique Artists</h4>
+              <p id="unique-artists">-</p>
+            </div>
+          </div>
+          
+          <div class="analytics-card">
+            <div class="analytics-icon">
+              <i class="fas fa-crown"></i>
+            </div>
+            <div class="analytics-details">
+              <h4>Top Artist</h4>
+              <p id="popular-artist">-</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Navigation between settings sections
+    const navItems = document.querySelectorAll('.settings-nav-item');
+    const sections = document.querySelectorAll('.settings-section');
+    
+    // Function to activate a tab
+    function activateTab(tabId) {
+      // Hide all sections
+      sections.forEach(section => {
+        section.style.display = 'none';
+      });
+      
+      // Show the target section
+      const targetSection = document.getElementById(tabId);
+      if (targetSection) {
+        targetSection.style.display = 'block';
+      }
+      
+      // Update active nav item
+      navItems.forEach(navItem => {
+        navItem.classList.remove('active');
+        if (navItem.getAttribute('href') === '#' + tabId) {
+          navItem.classList.add('active');
+        }
+      });
+    }
+    
+    // Check for URL hash to determine which tab to show
+    const hash = window.location.hash || '#profile';
+    const tabId = hash.substring(1); // Remove the # character
+    activateTab(tabId);
+    
+    // Add click event listeners to nav items
+    navItems.forEach(item => {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Get the target section ID from the href attribute
+        const targetId = this.getAttribute('href').substring(1);
+        
+        // Activate the tab
+        activateTab(targetId);
+        
+        // Update the URL hash
+        window.location.hash = targetId;
+      });
+    });
+    
+    // Add hash to form actions to maintain tab after submission
+    document.querySelectorAll('.settings-form').forEach(form => {
+      form.addEventListener('submit', function() {
+        const activeTab = document.querySelector('.settings-nav-item.active');
+        if (activeTab) {
+          const hash = activeTab.getAttribute('href');
+          // Add the hash to the form action
+          this.action = this.action + hash;
+        }
+      });
+    });
+    
+    // Profile picture preview
+    const profilePictureInput = document.getElementById('profile_picture');
+    const profilePictureImg = document.querySelector('.profile-picture img');
+    const profilePicturePlaceholder = document.querySelector('.profile-picture-placeholder');
+    
+    if (profilePictureInput) {
+      profilePictureInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+          const reader = new FileReader();
+          
+          reader.onload = function(e) {
+            if (profilePictureImg) {
+              profilePictureImg.src = e.target.result;
+            } else if (profilePicturePlaceholder) {
+              profilePicturePlaceholder.style.display = 'none';
+              
+              const img = document.createElement('img');
+              img.src = e.target.result;
+              img.alt = 'Profile Picture';
+              
+              document.querySelector('.profile-picture').appendChild(img);
+            }
+          };
+          
+          reader.readAsDataURL(this.files[0]);
+        }
+      });
+    }
+  });
+</script>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Analytics Script -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Only initialize analytics if we're on the analytics tab
+    const isAnalyticsTab = window.location.hash === '#analytics';
+    if (isAnalyticsTab) {
+      initializeAnalytics();
+    }
+    
+    // Check if we switch to analytics tab
+    const analyticsNavItem = document.querySelector('a[href="#analytics"]');
+    if (analyticsNavItem) {
+      analyticsNavItem.addEventListener('click', function() {
+        initializeAnalytics();
+      });
+    }
+    
+    // Initialize analytics functionality
+    function initializeAnalytics() {
+      // Set loading state
+      const analyticsValues = document.querySelectorAll('.analytics-details p');
+      analyticsValues.forEach(element => {
+        element.innerHTML = '<span class="loading"></span>';
+      });
+      
+      loadUserAnalytics();
+      loadAppAnalytics();
+    }
+    
+    // Load user analytics data
+    function loadUserAnalytics() {
+      console.log("Loading user analytics data...");
+      fetch('/api/user_analytics')
+        .then(response => {
+          console.log("Response status:", response.status);
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log("Received user analytics data:", data);
+          
+          if (data.error) {
+            console.error("API returned an error:", data.error);
+            document.getElementById('listening-streak').textContent = 'Error';
+            document.getElementById('most-active-day').textContent = 'Error';
+            document.getElementById('most-active-time').textContent = 'Error';
+            document.getElementById('most-popular-artist').textContent = 'Error';
+            return;
+          }
+          
+          if (data.no_listening_data) {
+            console.log("No listening data available for this user");
+            document.getElementById('listening-streak').textContent = '0';
+            document.getElementById('most-active-day').textContent = 'N/A';
+            document.getElementById('most-active-time').textContent = 'N/A';
+            document.getElementById('most-popular-artist').textContent = 'N/A';
+            return;
+          }
+          
+          // Update the UI with the analytics data
+          console.log("Displaying user analytics data");
+          document.getElementById('listening-streak').textContent = data.listening_streak || '0';
+          document.getElementById('most-active-day').textContent = data.most_active_day || 'N/A';
+          document.getElementById('most-active-time').textContent = data.most_active_time || 'N/A';
+          document.getElementById('most-popular-artist').textContent = data.most_popular_artist || 'N/A';
+        })
+        .catch(error => {
+          console.error('Error loading user analytics:', error);
+          document.getElementById('listening-streak').textContent = 'Error';
+          document.getElementById('most-active-day').textContent = 'Error';
+          document.getElementById('most-active-time').textContent = 'Error';
+          document.getElementById('most-popular-artist').textContent = 'Error';
+        });
+    }
+    
+    // Load app analytics data
+    function loadAppAnalytics() {
+      fetch('/api/app_analytics')
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('total-users').innerText = data.total_users.toLocaleString();
+          document.getElementById('total-streams').innerText = data.total_streams.toLocaleString();
+          document.getElementById('unique-tracks').innerText = data.unique_tracks.toLocaleString();
+          document.getElementById('unique-albums').innerText = data.unique_albums.toLocaleString();
+          document.getElementById('unique-artists').innerText = data.unique_artists.toLocaleString();
+          
+          // Update most popular artist
+          document.getElementById('popular-artist').innerText = data.popular_artist;
+        })
+        .catch(error => {
+          console.error('Error loading app analytics:', error);
+          // Show error state
+          document.querySelectorAll('.analytics-section:last-of-type .analytics-details p').forEach(element => {
+            element.innerText = 'Error loading data';
+            element.style.color = '#dc3545';
+          });
+        });
+    }
+  });
+</script>
+
+<script>
+  // Function to update scrobbling status
+  function updateScrobblingStatus(enabled) {
+    fetch('/api/update_spotify_settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      },
+      body: JSON.stringify({
+        enabled: enabled
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Update session value
+        document.querySelector('input[name="enable_scrobbling"]').checked = enabled;
+        
+        // Show message
+        const message = enabled ? 'Live scrobbling enabled' : 'Live scrobbling disabled';
+        showMessage(message, 'success');
+      } else {
+        showMessage('Failed to update settings', 'error');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showMessage('An error occurred', 'error');
+    });
+  }
+  
+  // Function to show a message
+  function showMessage(message, type) {
+    const messageElement = document.createElement('div');
+    messageElement.className = `alert alert-${type}`;
+    messageElement.textContent = message;
+    
+    const container = document.querySelector('.settings-container');
+    container.insertBefore(messageElement, container.firstChild);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+      messageElement.remove();
+    }, 3000);
+  }
+</script>
+{% endblock %}

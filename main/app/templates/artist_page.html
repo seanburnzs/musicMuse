@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block header_title %}{% endblock %}
+
+{% block content %}
+<div class="detail-page-container artist-page">
+  <!-- Navigation header -->
+  <div class="detail-header">
+    <a href="javascript:history.back()" class="back-button" title="Go back to previous page">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    
+    <div class="detail-identity">
+      <h2 class="detail-title">{{ artist_name }}</h2>
+    </div>
+  </div>
+
+  <!-- User stats for this artist -->
+  <div class="user-artist-stats">
+    <div class="stat-bubble">
+      <div class="stat-label">Your Total Streams</div>
+      <div class="stat-value">{{ user_stats.total_streams }}</div>
+    </div>
+    
+    <div class="stat-bubble">
+      <div class="stat-label">Your Top Song</div>
+      <div class="stat-value">
+        <a href="{{ url_for('item_pages.track_page', track_id=user_stats.top_track_id) }}" class="item-link">
+          {{ user_stats.top_track_name }}
+        </a>
+      </div>
+    </div>
+    
+    <div class="stat-bubble">
+      <div class="stat-label">Your Top Album</div>
+      <div class="stat-value">
+        <a href="{{ url_for('item_pages.album_page', album_id=user_stats.top_album_id) }}" class="item-link">
+          {{ user_stats.top_album_name }}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Artist's albums -->
+  <div class="detail-section albums-section">
+    <h3>Albums</h3>
+    <div class="items-grid">
+      {% for album_id, album_name, image_url, total_streams in albums %}
+        <div class="grid-item">
+          <a href="{{ url_for('item_pages.album_page', album_id=album_id) }}" class="item-link">
+            {% if image_url %}
+            <div class="item-image" data-bg-url="{{ image_url }}"></div>
+            {% else %}
+            <div class="item-image" data-bg-url="{{ url_for('static', filename='img/default-album.png') }}"></div>
+            {% endif %}
+            <div class="item-details">
+              <div class="item-name">{{ album_name }}</div>
+              <div class="item-stats">{{ total_streams }} streams</div>
+            </div>
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- App-wide stats for this artist -->
+  <div class="detail-section app-stats">
+    <h3>App Stats</h3>
+    <div class="app-stats-content">
+      <div class="stat-item">
+        <div class="stat-label">Total Streams</div>
+        <div class="stat-value">{{ app_stats.total_streams }}</div>
+      </div>
+      
+      <div class="stat-item">
+        <div class="stat-label">Top Song</div>
+        <div class="stat-value">{{ app_stats.top_track_name }}</div>
+      </div>
+      
+      <div class="stat-item">
+        <div class="stat-label">Top Album</div>
+        <div class="stat-value">{{ app_stats.top_album_name }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

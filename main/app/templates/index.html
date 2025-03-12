@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block header_title %}Welcome to Music Muse{% endblock %}
+
+{% block content %}
+  <div class="welcome-container">
+    <h2>Explore Your (MY) Streaming History</h2>
+    <p>Music Muse is a music analytics platform for exploring listening habits and history. Users will eventually upload their own data, but for now, feel free to browse mine or follow the GitHub instructions to use your own locally.</p>
+    
+    <div class="feature-cards">
+      <div class="feature-card">
+        <h3>Top Music</h3>
+        <p>View your most played tracks, albums, and artists with detailed statistics including play counts and total listening time. Filter by different time periods to see how your music taste has evolved.</p>
+        <a href="{{ url_for('analytics.top_items') }}" class="feature-link">Explore Top Music</a>
+      </div>
+      
+      <div class="feature-card">
+        <h3>Music Muse</h3>
+        <p>Ask natural language questions about your listening history and get intelligent insights. Discover patterns and trends in your music taste with our powerful search tool.</p>
+        <a href="{{ url_for('analytics.music_muse') }}" class="feature-link">Try Music Muse</a>
+      </div>
+      
+      <div class="feature-card">
+        <h3>Compare Profiles</h3>
+        <p>Compare your listening habits with friends. See who listens to more music, discover shared favorites, and find out who has the more obscure music taste.</p>
+        <a href="{{ url_for('social.compare_shortcut') }}" class="feature-link">Compare Profiles</a>
+      </div>
+      
+      <div class="feature-card">
+        <h3>Charts</h3>
+        <p>Create and share charts of your favorite music. See how your music tastes have changed over time.</p>
+        <a href="{{ url_for('analytics.charts') }}" class="feature-link">View Charts</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

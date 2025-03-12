@@ -1,0 +1,1 @@
+Here you will have teh full structure of the app setup, the database, the main project, the scrobbler, the object storage, and the redis databse cluster
