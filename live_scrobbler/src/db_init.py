@@ -17,7 +17,7 @@ def create_database():
     
     # Connect to PostgreSQL server
     conn_params = DB_CONFIG.copy()
-    conn_params["dbname"] = "postgres"  # Connect to default database
+    conn_params["dbname"] = "doadmin"  # Connect to default database
     
     conn = None
     try:
